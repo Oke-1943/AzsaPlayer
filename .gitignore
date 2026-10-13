@@ -1,0 +1,14 @@
+.gradle/
+.kotlin/
+build/
+.cxx/
+local.properties
+.idea/
+*.iml
+captures/
+/samples/
+
+# 配布用の署名鍵（絶対にコミットしない）
+*.jks
+*.keystore
+keystore.properties
