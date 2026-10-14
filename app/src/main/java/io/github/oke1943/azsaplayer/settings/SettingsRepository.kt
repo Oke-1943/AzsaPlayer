@@ -52,7 +52,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     companion object {
-        const val CURRENT_SCHEMA = 8
+        const val CURRENT_SCHEMA = 7
 
         /** 旧版（ver.1〜5）で保存された既定のタブ名。 */
         internal val LEGACY_DEFAULT_TITLES: Map<ViewKind, List<String>> = mapOf(
@@ -129,13 +129,6 @@ fun migrateSettings(old: AppSettings): AppSettings {
         // ver.7：「Cover Flow」を「Album Flow」に改名。旧名のままのタブ名は空にして新しい名前に追従させる
         s = s.copy(display = s.display.copy(homeViews = s.display.homeViews.map { v ->
             if (v.kind == ViewKind.ALBUM_FLOW && v.title in listOf("カバーフロー", "Cover Flow")) v.copy(title = "") else v
-        }))
-    }
-    if (s.schema < 8) {
-        // ver.8（アプリ0.7.0）：アルバムアーティストの一覧にジャケットを表示するのを既定にする
-        s = s.copy(display = s.display.copy(homeViews = s.display.homeViews.map { v ->
-            if (v.levels.firstOrNull() != ViewKind.ALBUM_ARTIST) v
-            else v.copy(styles = v.levels.indices.map { i -> if (i == 0) v.styleAt(0).copy(showArtwork = true) else v.styleAt(i) })
         }))
     }
     return if (s.schema == SettingsRepository.CURRENT_SCHEMA) s else s.copy(schema = SettingsRepository.CURRENT_SCHEMA)

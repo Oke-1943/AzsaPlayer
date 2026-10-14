@@ -8,8 +8,6 @@
     <string name="add_view">＋ 表示項目を追加</string>
     <string name="add_view_custom">カスタム（任意のタグでグループ化）…</string>
     <string name="add_view_title">表示項目を追加</string>
-    <string name="app_icon">アプリアイコン</string>
-    <string name="app_icon_note">新しいアイコンはアプリを離れたときに反映されます。ホーム画面への反映に数秒かかることがあります。</string>
     <string name="artwork">アートワーク</string>
     <string name="artwork_size">アートワークの大きさ</string>
     <string name="back">戻る</string>
@@ -52,10 +50,6 @@
     <string name="grid_columns">グリッドの列数</string>
     <string name="grid_columns_value">%1$d列</string>
     <string name="home_views_hint">ドラッグで並べ替え、タップで一覧の形式と階層を変更できます。1つだけにするとタブ列は表示されません。</string>
-    <string name="icon_default">標準</string>
-    <string name="icon_monogram">AZモノグラム</string>
-    <string name="icon_record">レコード</string>
-    <string name="icon_wave">ウェーブ</string>
     <string name="import_done">設定を読み込みました</string>
     <string name="import_failed">読み込めませんでした：%1$s</string>
     <string name="import_settings">設定を読み込む（JSON）</string>
@@ -288,10 +282,4 @@
     <string name="unplayable">再生不可</string>
     <string name="unplayable_format">この形式（%1$s）は再生できません</string>
     <string name="version">バージョン</string>
-    <string name="widget_cover">ジャケット</string>
-    <string name="widget_desc_cover">大きなジャケットと再生ボタン</string>
-    <string name="widget_desc_player">ジャケット・曲名と前／再生／次のボタン</string>
-    <string name="widget_desc_record">ジャケットがレーベルになるレコードプレーヤー。レコードをタップで再生／一時停止</string>
-    <string name="widget_player">再生コントロール</string>
-    <string name="widget_record">レコードプレーヤー</string>
 </resources>

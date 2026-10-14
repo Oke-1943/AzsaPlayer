@@ -16,8 +16,6 @@ The app is designed to be minimal by default and deeply customizable from the se
 - **Gapless playback**, queue editing, shuffle by track or album, repeat, resume after restart.
 - **Customizable home** — choose and reorder tabs (Album Artist, Artist, Album, Track, Composer, Genre, Year, Decade, Folder, Playlist, Recently Added, Album Flow, or any custom tag), the levels down to tracks, list or grid, artwork, and two-line templates such as `<Artist> — <Year>`.
 - **Album Flow** — browse albums by their covers, with a virtual scroll wheel.
-- **Home screen widgets** — standard playback controls, a record player whose tonearm drops onto the record (with the album art as its label) while playing, and a large album art widget.
-- **Choice of app icons** — the default icon, plus an AZ monogram, a record, and a wave whose bars draw an "A" (Settings > Display > App icon).
 - **Search** that ignores hiragana/katakana, full/half width and case, and also matches sort tags.
 - Playlists, M3U/M3U8 import with Windows path replacement (for playlists exported from MusicBee).
 - English and Japanese.
