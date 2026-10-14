@@ -17,4 +17,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent { AppRoot() }
     }
+
+    override fun onStop() {
+        super.onStop()
+        // 設定で選んだアプリアイコンは、画面から離れたときに切り替える（AppIcons）
+        if (!isChangingConfigurations) AppIcons.applyPending(this)
+    }
 }

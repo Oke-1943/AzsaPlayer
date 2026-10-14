@@ -31,6 +31,8 @@ import io.github.oke1943.azsaplayer.MainActivity
 import io.github.oke1943.azsaplayer.container
 import io.github.oke1943.azsaplayer.data.PlayHistoryEntity
 import io.github.oke1943.azsaplayer.settings.ReplayGainSettings
+import io.github.oke1943.azsaplayer.widget.WidgetState
+import io.github.oke1943.azsaplayer.widget.Widgets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -122,7 +124,23 @@ class PlaybackService : MediaSessionService() {
         if (!player.playWhenReady || player.mediaItemCount == 0) stopSelf()
     }
 
+    /** ホーム画面ウィジェットに今の曲と再生状態を伝える（ver.7）。 */
+    private fun publishWidget(playing: Boolean = player.playWhenReady) {
+        val item = player.currentMediaItem
+        val m = item?.mediaMetadata
+        Widgets.publish(
+            this,
+            WidgetState(
+                title = m?.title?.toString().orEmpty(),
+                artist = m?.artist?.toString().orEmpty(),
+                trackId = item?.mediaId?.toLongOrNull() ?: -1,
+                playing = playing && item != null,
+            ),
+        )
+    }
+
     override fun onDestroy() {
+        publishWidget(playing = false)
         saveQueue()
         handler.removeCallbacksAndMessages(null)
         scope.cancel()
@@ -279,6 +297,9 @@ class PlaybackService : MediaSessionService() {
                 saveQueue()
             }
             if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) && !player.isPlaying) saveQueue()
+            if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_MEDIA_METADATA_CHANGED, Player.EVENT_IS_PLAYING_CHANGED, Player.EVENT_PLAY_WHEN_READY_CHANGED)) {
+                publishWidget()
+            }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

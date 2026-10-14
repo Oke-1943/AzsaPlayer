@@ -9,6 +9,8 @@
     <string name="add_view">+ Add tab</string>
     <string name="add_view_custom">Custom (group by any tag)…</string>
     <string name="add_view_title">Add tab</string>
+    <string name="app_icon">App icon</string>
+    <string name="app_icon_note">The new icon is applied when you leave the app. The home screen may take a few seconds to update.</string>
     <string name="artwork">Artwork</string>
     <string name="artwork_size">Artwork size</string>
     <string name="back">Back</string>
@@ -51,6 +53,10 @@
     <string name="grid_columns">Grid columns</string>
     <string name="grid_columns_value">%1$d columns</string>
     <string name="home_views_hint">Drag to reorder; tap to change the list style and levels. With only one tab, the tab bar is hidden.</string>
+    <string name="icon_default">Default</string>
+    <string name="icon_monogram">AZ Monogram</string>
+    <string name="icon_record">Record</string>
+    <string name="icon_wave">Wave</string>
     <string name="import_done">Settings imported</string>
     <string name="import_failed">Could not import: %1$s</string>
     <string name="import_settings">Import settings (JSON)</string>
@@ -283,4 +289,10 @@
     <string name="unplayable">Unplayable</string>
     <string name="unplayable_format">This format (%1$s) cannot be played</string>
     <string name="version">Version</string>
+    <string name="widget_cover">Album art</string>
+    <string name="widget_desc_cover">Large album art with a play button</string>
+    <string name="widget_desc_player">Artwork, title and previous / play / next buttons</string>
+    <string name="widget_desc_record">A turntable with the album art as the label. Tap the record to play or pause</string>
+    <string name="widget_player">Playback controls</string>
+    <string name="widget_record">Record player</string>
 </resources>

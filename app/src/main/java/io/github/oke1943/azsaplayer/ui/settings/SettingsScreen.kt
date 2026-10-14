@@ -46,6 +46,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import io.github.oke1943.azsaplayer.AppIcons
 import io.github.oke1943.azsaplayer.AppLocale
 import io.github.oke1943.azsaplayer.R
 import io.github.oke1943.azsaplayer.StorageAccess
@@ -128,6 +132,7 @@ fun DisplaySettingsScreen(settings: AppSettings, onBack: () -> Unit, onOpenHomeV
             SliderRow(stringResource(R.string.set_font_size), d.fontScale, 0.8f..1.4f, 0.05f, { "%.0f%%".format(it * 100) }) { v ->
                 update { it.copy(display = it.display.copy(fontScale = v)) }
             }
+            AppIconPicker()
 
             SectionHeader(stringResource(R.string.set_home))
             ClickRow(
@@ -170,6 +175,46 @@ fun DisplaySettingsScreen(settings: AppSettings, onBack: () -> Unit, onOpenHomeV
             Spacer(Modifier.padding(16.dp))
         }
     }
+}
+
+/** アプリアイコンの選択（ver.7）。実物と同じアダプティブアイコンを並べ、タップで選ぶ（反映はアプリを離れたとき）。 */
+@Composable
+private fun AppIconPicker() {
+    val context = LocalContext.current
+    var current by remember { mutableStateOf(AppIcons.current(context)) }
+    Text(stringResource(R.string.app_icon), Modifier.padding(start = 16.dp, top = 12.dp), style = MaterialTheme.typography.bodyLarge)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
+        for (option in AppIcons.OPTIONS) {
+            val selected = option == current
+            val bitmap = remember(option) { context.getDrawable(option.icon)!!.toBitmap(144, 144).asImageBitmap() }
+            Column(
+                Modifier.weight(1f).clip(MaterialTheme.shapes.medium)
+                    .clickable {
+                        if (!selected) {
+                            AppIcons.choose(context, option)
+                            current = option
+                        }
+                    }
+                    .padding(vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Image(
+                    bitmap, contentDescription = null,
+                    modifier = Modifier.size(56.dp).clip(CircleShape)
+                        .border(if (selected) 3.dp else 0.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                )
+                Text(
+                    stringResource(option.label), Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.app_icon_note), Modifier.padding(horizontal = 16.dp),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 private fun languageLabel(context: android.content.Context, lang: String) = when (lang) {

@@ -136,7 +136,7 @@ data class ViewConfig(
         }
 
         fun defaultStyle(kind: ViewKind): ListStyle = when (kind) {
-            ViewKind.ALBUM -> ListStyle(showArtwork = true)
+            ViewKind.ALBUM, ViewKind.ALBUM_ARTIST -> ListStyle(showArtwork = true)
             ViewKind.TRACK -> ListStyle(sortBy = SortBy.TRACK_NUMBER, line2 = TRACK_LINE2)
             ViewKind.YEAR, ViewKind.DECADE -> ListStyle(sortBy = SortBy.NAME)
             ViewKind.FOLDER, ViewKind.PLAYLIST -> ListStyle(sortBy = SortBy.NAME)

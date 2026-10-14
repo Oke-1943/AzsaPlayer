@@ -53,6 +53,19 @@ class MigrationTest {
     }
 
     @Test
+    fun albumArtistArtworkIsOnByDefault() {
+        // 新規インストール
+        val fresh = AppSettings().display.homeViews.first { it.kind == ViewKind.ALBUM_ARTIST }
+        assertTrue(fresh.styleAt(0).showArtwork)
+        // 0.6.x で保存された設定（ジャケットなし）も移行でオンになる。アルバムの段は変えない
+        val v7 = """{"schema":7,"display":{"homeViews":[{"id":"album-artist","kind":"ALBUM_ARTIST","levels":["ALBUM_ARTIST","ALBUM","TRACK"],
+            "styles":[{"showArtwork":false},{"showArtwork":false},{}]}]}}"""
+        val v = migrateSettings(SettingsRepository.decodeOrNull(v7)!!).display.homeViews.single()
+        assertTrue(v.styleAt(0).showArtwork)
+        assertEquals(false, v.styleAt(1).showArtwork)
+    }
+
+    @Test
     fun albumFlowIsStillSavedUnderTheOldName() {
         val json = SettingsRepository.json.encodeToString(AppSettings.serializer(), AppSettings())
         assertTrue(json.contains("\"COVER_FLOW\""))
