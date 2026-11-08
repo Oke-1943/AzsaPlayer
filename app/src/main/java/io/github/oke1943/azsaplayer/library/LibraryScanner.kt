@@ -40,6 +40,9 @@ class LibraryScanner(private val context: Context, private val db: AppDatabase) 
 
     suspend fun scan(settings: LibrarySettings, full: Boolean, onProgress: (ScanProgress) -> Unit) {
         onProgress(ScanProgress(true, phase = ScanPhase.FINDING))
+        // 「音楽ファイルの読み取りのみ」では、Androidのメディア一覧に登録済みのファイルしかフォルダに見えない。
+        // 先に指定フォルダを登録させてから一覧を作る（未登録の曲が読み込まれない問題の対策）。
+        if (!io.github.oke1943.azsaplayer.StorageAccess.hasAllFiles()) registerWithMediaStore(settings.folders)
         val files = collectFiles(settings)
         val existing = dao.fileStamps().associateBy { it.path }
 
@@ -57,14 +60,25 @@ class LibraryScanner(private val context: Context, private val db: AppDatabase) 
         val now = System.currentTimeMillis()
 
         targets.chunked(100).forEachIndexed { chunkIndex, chunk ->
-            val read = chunk.map { it to TagLibNative.read(it.path) }
-            db.withTransaction {
-                for ((file, tags) in read) {
-                    if (tags.error != null) {
-                        errors += ScanErrorEntity(file.path, tags.error, now)
-                        continue
-                    }
-                    store(file, tags, settings, existing[file.path]?.let { it.id to it.dateAdded }, now, persons, values)
+            // 1曲の読み取りに失敗しても、残りの曲の取り込みは続ける
+            val read = chunk.map { f ->
+                f to try { TagLibNative.read(f.path) } catch (e: Exception) { RawTags.error(e.message ?: e.javaClass.simpleName) }
+            }
+            for ((file, tags) in read) {
+                if (tags.error != null) {
+                    errors += ScanErrorEntity(file.path, tags.error, now)
+                    continue
+                }
+                try {
+                    db.withTransaction { store(file, tags, settings, existing[file.path]?.let { it.id to it.dateAdded }, now, persons, values) }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.w("LibraryScanner", "store failed: ${file.path}", e)
+                    errors += ScanErrorEntity(file.path, e.message ?: e.javaClass.simpleName, now)
+                    // 取り消された書き込みの分を捨てて、DBの内容から作り直す
+                    persons.clear(); dao.allPersons().forEach { persons[it.nameKey] = it.id }
+                    values.clear(); dao.allFieldValues().forEach { values[it.field + "\u0000" + it.valueKey] = it.id }
                 }
             }
             onProgress(ScanProgress(true, (chunkIndex * 100 + chunk.size), targets.size, ScanPhase.READING))
@@ -183,6 +197,22 @@ class LibraryScanner(private val context: Context, private val db: AppDatabase) 
                 artTrackId = (list.firstOrNull { it.hasEmbeddedArt } ?: first).id,
             )
         })
+    }
+
+    /** 指定フォルダ以下をAndroidのメディア一覧に登録させ、終わるまで待つ（時間がかかりすぎたら先へ進む）。 */
+    private suspend fun registerWithMediaStore(folders: List<String>) {
+        if (folders.isEmpty()) return
+        kotlinx.coroutines.withTimeoutOrNull(10 * 60_000L) {
+            kotlinx.coroutines.suspendCancellableCoroutine<Unit> { cont ->
+                var left = folders.size
+                android.media.MediaScannerConnection.scanFile(context, folders.toTypedArray(), null) { _, _ ->
+                    synchronized(this@LibraryScanner) {
+                        left--
+                        if (left == 0 && cont.isActive) cont.resumeWith(Result.success(Unit))
+                    }
+                }
+            }
+        }
     }
 
     private fun collectFiles(settings: LibrarySettings): List<File> {
