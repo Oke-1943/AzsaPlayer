@@ -8,6 +8,10 @@ import io.github.oke1943.azsaplayer.settings.PathRule
 import io.github.oke1943.azsaplayer.settings.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import io.github.oke1943.azsaplayer.library.ListenEvent
+import io.github.oke1943.azsaplayer.library.ListeningStats
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
@@ -18,13 +22,34 @@ class PlaylistRepository(
     db: AppDatabase,
     private val library: LibraryRepository,
     private val settings: SettingsRepository,
+    /** 「よく聞く音楽」の表示名（表示言語に合わせる）。 */
+    private val smartName: () -> String = { "Frequently played" },
 ) {
     private val dao = db.playlistDao()
 
-    val playlists: Flow<List<PlaylistInfo>> = combine(dao.playlists(), dao.allEntries()) { lists, entries ->
+    /** 保存してあるプレイリスト（名前の変更・編集・曲の追加ができるもの）。 */
+    val userPlaylists: Flow<List<PlaylistInfo>> = combine(dao.playlists(), dao.allEntries()) { lists, entries ->
         val byList = entries.groupBy { it.playlistId }
         lists.map { p -> PlaylistInfo(p.id, p.name, byList[p.id].orEmpty().sortedBy { it.position }.map { it.trackId }) }
     }
+
+    /**
+     * 「よく聞く音楽」：再生の記録から自動で作る（[ListeningStats]）。記録・ライブラリ・設定が変わるたびに作り直すので、
+     * 曲は自動で入れ替わる。直近1年の記録だけを使う。
+     */
+    private val smart: Flow<PlaylistInfo?> = combine(
+        db.historyDao().since(System.currentTimeMillis() - 365L * 86_400_000L),
+        library.snapshot,
+        settings.settings.map { it.library.smartPlaylist to it.library.smartPlaylistSize }.distinctUntilChanged(),
+    ) { history, lib, (enabled, size) ->
+        if (!enabled) return@combine null
+        val events = history.map { ListenEvent(it.trackId, it.playedAt, it.completed) }
+        val ids = ListeningStats.frequentlyPlayed(events, System.currentTimeMillis(), size) { lib.tracksById.containsKey(it) }
+        PlaylistInfo(SMART_ID, smartName(), ids)
+    }
+
+    /** 一覧に出すプレイリスト：「よく聞く音楽」を先頭に、保存してあるプレイリスト。 */
+    val playlists: Flow<List<PlaylistInfo>> = combine(smart, userPlaylists) { s, user -> listOfNotNull(s) + user }
 
     suspend fun create(name: String, trackIds: List<Long> = emptyList()): Long {
         val now = System.currentTimeMillis()
@@ -85,6 +110,9 @@ class PlaylistRepository(
         }
     }
 }
+
+/** 「よく聞く音楽」のプレイリストID（DBには保存しない仮のID）。 */
+const val SMART_ID = -1L
 
 /** M3Uの解析とパスの置き換え（純粋なロジック）。 */
 object M3u {

@@ -61,6 +61,55 @@ class PlaybackService : MediaSessionService() {
     private var restored = false
     private var lastError: String? = null
 
+    /**
+     * 再生の記録（「よく聞く音楽」用）。曲ごとに実際に再生していた時間を測り、
+     * 半分以上聞いたら「聞いた」、半分に届かず次へ移ったら「スキップ」として残す。
+     */
+    private val listen = object {
+        private var trackId: Long? = null
+        private var durationMs = 0L
+        private var listenedMs = 0L
+        private var playingSince = -1L
+
+        fun start(item: MediaItem?, isPlaying: Boolean) {
+            finish()
+            trackId = item?.mediaId?.toLongOrNull()
+            durationMs = item?.mediaMetadata?.durationMs ?: 0L
+            listenedMs = 0
+            playingSince = if (isPlaying) android.os.SystemClock.elapsedRealtime() else -1
+        }
+
+        fun playing(isPlaying: Boolean) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (isPlaying) {
+                if (playingSince < 0) playingSince = now
+            } else if (playingSince >= 0) {
+                listenedMs += now - playingSince
+                playingSince = -1
+            }
+        }
+
+        fun finish() {
+            val id = trackId ?: return
+            if (playingSince >= 0) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                listenedMs += now - playingSince
+                playingSince = now
+            }
+            val listened = listenedMs
+            val duration = durationMs
+            trackId = null
+            if (listened < 1_000) return // ほとんど再生していないものは記録しない
+            val completed = duration <= 0 || listened * 2 >= duration
+            val c = applicationContext.container
+            c.scope.launch {
+                c.db.historyDao().insert(
+                    PlayHistoryEntity(trackId = id, playedAt = System.currentTimeMillis(), completed = completed, listenedMs = listened),
+                )
+            }
+        }
+    }
+
     override fun attachBaseContext(base: Context) {
         // 通知・エラー表示の文言もアプリ内で選んだ言語にする
         super.attachBaseContext(io.github.oke1943.azsaplayer.AppLocale.wrap(base))
@@ -123,6 +172,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        listen.finish()
         saveQueue()
         handler.removeCallbacksAndMessages(null)
         scope.cancel()
@@ -283,9 +333,16 @@ class PlaybackService : MediaSessionService() {
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             lastError = null
-            val id = mediaItem?.mediaId?.toLongOrNull() ?: return
-            val c = applicationContext.container
-            c.scope.launch { c.db.historyDao().insert(PlayHistoryEntity(trackId = id, playedAt = System.currentTimeMillis())) }
+            listen.start(mediaItem, player.isPlaying)
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            listen.playing(isPlaying)
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // キューの最後の曲を聞き終えたときも記録を確定する
+            if (playbackState == Player.STATE_ENDED) listen.finish()
         }
 
         override fun onPlayerError(error: PlaybackException) {

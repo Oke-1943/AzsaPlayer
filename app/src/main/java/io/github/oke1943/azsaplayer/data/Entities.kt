@@ -134,6 +134,10 @@ data class PlayHistoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val trackId: Long,
     val playedAt: Long,
+    /** 曲の半分以上を聞いたか。false はスキップ（ver.0.6.2。それ以前の記録は true 扱い）。 */
+    @androidx.room.ColumnInfo(defaultValue = "1") val completed: Boolean = true,
+    /** 実際に再生していた時間（ミリ秒）。 */
+    @androidx.room.ColumnInfo(defaultValue = "0") val listenedMs: Long = 0,
 )
 
 @Entity(tableName = "scan_errors")

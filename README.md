@@ -15,8 +15,12 @@ The app is designed to be minimal by default and deeply customizable from the se
 - **Audio quality** — decoded to 32-bit float and output as float; nothing but ReplayGain is applied. AAC DRC and loudness normalization in the decoder are disabled.
 - **Gapless playback**, queue editing, shuffle by track or album, repeat, resume after restart.
 - **Customizable home** — choose and reorder tabs (Album Artist, Artist, Album, Track, Composer, Genre, Year, Decade, Folder, Playlist, Recently Added, Album Flow, or any custom tag), the levels down to tracks, list or grid, artwork, and two-line templates such as `<Artist> — <Year>`.
-- **Album Flow** — browse albums by their covers, with a virtual scroll wheel.
+- **Artist album order** — a default order (year, title, date added) for every artist, with per-artist overrides including a manual order. Play all of an artist's tracks in order or shuffled.
+- **Customizable now playing screen** — choose the items and their order, and whether long text scrolls. Swipe down to go back to the album's track list.
+- **Album Flow** — browse albums by their covers, with a virtual scroll wheel, optionally shuffled each time you open it.
 - **Search** that ignores hiragana/katakana, full/half width and case, and also matches sort tags.
+- **Frequently played** — a playlist built automatically from your plays and skips, updated as you listen.
+- Themes: system, light, dark, black and tactical.
 - Playlists, M3U/M3U8 import with Windows path replacement (for playlists exported from MusicBee).
 - English and Japanese.
 

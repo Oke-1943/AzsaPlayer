@@ -75,35 +75,38 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** 設定の大分類（6.5）：表示・ライブラリ・再生・リプレイゲイン・詳細。 */
+/** 設定の大分類。説明文は置かず、項目名だけで分かる分け方にする（説明は「マニュアル」）。 */
 @Composable
 fun SettingsHomeScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     SettingsScaffold(title = stringResource(R.string.settings), onBack = onBack) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            ClickRow(stringResource(R.string.set_display), stringResource(R.string.set_display_summary)) { onOpen(Routes.SETTINGS_DISPLAY) }
-            ClickRow(stringResource(R.string.set_library), stringResource(R.string.set_library_summary)) { onOpen(Routes.SETTINGS_LIBRARY) }
-            ClickRow(stringResource(R.string.set_playback), stringResource(R.string.set_playback_summary)) { onOpen(Routes.SETTINGS_PLAYBACK) }
-            ClickRow(stringResource(R.string.set_rg), stringResource(R.string.set_rg_summary)) { onOpen(Routes.SETTINGS_RG) }
-            ClickRow(stringResource(R.string.set_advanced), stringResource(R.string.set_advanced_summary)) { onOpen(Routes.SETTINGS_ADVANCED) }
+            ClickRow(stringResource(R.string.set_appearance)) { onOpen(Routes.SETTINGS_APPEARANCE) }
+            ClickRow(stringResource(R.string.set_home)) { onOpen(Routes.SETTINGS_HOME_VIEWS) }
+            ClickRow(stringResource(R.string.set_now_playing)) { onOpen(Routes.SETTINGS_NOW_PLAYING) }
+            ClickRow(stringResource(R.string.set_playback)) { onOpen(Routes.SETTINGS_PLAYBACK) }
+            ClickRow(stringResource(R.string.set_rg)) { onOpen(Routes.SETTINGS_RG) }
+            ClickRow(stringResource(R.string.set_library)) { onOpen(Routes.SETTINGS_LIBRARY) }
+            ClickRow(stringResource(R.string.set_advanced)) { onOpen(Routes.SETTINGS_ADVANCED) }
+            ClickRow(stringResource(R.string.set_manual)) { onOpen(Routes.SETTINGS_MANUAL) }
         }
     }
 }
 
 @Composable
-private fun rememberUpdater(): ((AppSettings) -> AppSettings) -> Unit {
+internal fun rememberUpdater(): ((AppSettings) -> AppSettings) -> Unit {
     val c = LocalContext.current.container
     val scope = rememberCoroutineScope()
     return { f -> scope.launch { c.settings.update(f) } }
 }
 
+/** 外観：言語・テーマ・強調色・文字サイズ。 */
 @Composable
-fun DisplaySettingsScreen(settings: AppSettings, onBack: () -> Unit, onOpenHomeViews: () -> Unit) {
+fun AppearanceSettingsScreen(settings: AppSettings, onBack: () -> Unit) {
     val context = LocalContext.current
     val update = rememberUpdater()
     val d = settings.display
-    SettingsScaffold(title = stringResource(R.string.set_display), onBack = onBack) {
+    SettingsScaffold(title = stringResource(R.string.set_appearance), onBack = onBack) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            SectionHeader(stringResource(R.string.set_appearance))
             val language = remember { AppLocale.saved(context) }
             ChoiceRow(stringResource(R.string.set_language), AppLocale.CHOICES, language, { languageLabel(context, it) }) { v ->
                 if (v != language) {
@@ -112,62 +115,25 @@ fun DisplaySettingsScreen(settings: AppSettings, onBack: () -> Unit, onOpenHomeV
                 }
             }
             ChoiceRow(stringResource(R.string.set_theme), ThemeMode.entries, d.theme, { themeLabel(context, it) }) { v -> update { it.copy(display = it.display.copy(theme = v)) } }
-            Text(stringResource(R.string.set_accent), Modifier.padding(start = 16.dp, top = 12.dp), style = MaterialTheme.typography.bodyLarge)
-            LazyRow(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                items(ACCENT_COLORS) { color ->
-                    val selected = color == d.accentColor
-                    Spacer(Modifier.width(4.dp))
-                    androidx.compose.foundation.layout.Box(
-                        Modifier.size(36.dp).clip(CircleShape).background(Color(color))
-                            .border(if (selected) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                            .clickable { update { it.copy(display = it.display.copy(accentColor = color)) } },
-                    )
-                    Spacer(Modifier.width(4.dp))
+            // タクティカルは配色が決まっているので強調色は選べない
+            if (d.theme != ThemeMode.TACTICAL) {
+                Text(stringResource(R.string.set_accent), Modifier.padding(start = 16.dp, top = 12.dp), style = MaterialTheme.typography.bodyLarge)
+                LazyRow(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    items(ACCENT_COLORS) { color ->
+                        val selected = color == d.accentColor
+                        Spacer(Modifier.width(4.dp))
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.size(36.dp).clip(CircleShape).background(Color(color))
+                                .border(if (selected) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                .clickable { update { it.copy(display = it.display.copy(accentColor = color)) } },
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
                 }
             }
             SliderRow(stringResource(R.string.set_font_size), d.fontScale, 0.8f..1.4f, 0.05f, { "%.0f%%".format(it * 100) }) { v ->
                 update { it.copy(display = it.display.copy(fontScale = v)) }
             }
-
-            SectionHeader(stringResource(R.string.set_home))
-            ClickRow(
-                stringResource(R.string.set_home_views),
-                d.homeViews.map { it.displayTitle(context.resources) }.joinToString(" · ") + "\n" + stringResource(R.string.set_home_views_summary),
-            ) { onOpenHomeViews() }
-            d.homeViews.forEach { v ->
-                SwitchRow(stringResource(R.string.set_show_artwork_in, v.displayTitle(context.resources)), v.styleAt(0).showArtwork) { on ->
-                    update { st ->
-                        st.copy(display = st.display.copy(homeViews = st.display.homeViews.map { x ->
-                            if (x.id != v.id) x else x.copy(styles = x.levels.indices.map { i ->
-                                if (i == 0) x.styleAt(0).copy(showArtwork = on) else x.styleAt(i)
-                            })
-                        }))
-                    }
-                }
-            }
-            SwitchRow(stringResource(R.string.set_show_search), d.showSearchButton) { v -> update { it.copy(display = it.display.copy(showSearchButton = v)) } }
-            ChoiceRow(
-                stringResource(R.string.set_start_tab), StartTab.entries, d.startTab,
-                { context.getString(if (it == StartTab.FIRST) R.string.set_start_tab_first else R.string.set_start_tab_last) },
-            ) { v -> update { it.copy(display = it.display.copy(startTab = v)) } }
-            TextRow(
-                stringResource(R.string.set_join_separator), d.joinSeparator,
-                summary = stringResource(R.string.set_join_separator_summary, d.joinSeparator),
-            ) { v -> if (v.isNotEmpty()) update { it.copy(display = it.display.copy(joinSeparator = v)) } }
-
-            SectionHeader(stringResource(R.string.set_now_playing_items))
-            val np = d.nowPlaying
-            fun setNp(f: (io.github.oke1943.azsaplayer.settings.NowPlayingSettings) -> io.github.oke1943.azsaplayer.settings.NowPlayingSettings) =
-                update { it.copy(display = it.display.copy(nowPlaying = f(it.display.nowPlaying))) }
-            SwitchRow(stringResource(R.string.np_artwork), np.showArtwork) { v -> setNp { it.copy(showArtwork = v) } }
-            SwitchRow(stringResource(R.string.np_title), np.showTitle) { v -> setNp { it.copy(showTitle = v) } }
-            SwitchRow(stringResource(R.string.np_artist), np.showArtist) { v -> setNp { it.copy(showArtist = v) } }
-            SwitchRow(stringResource(R.string.np_album), np.showAlbum) { v -> setNp { it.copy(showAlbum = v) } }
-            SwitchRow(stringResource(R.string.np_format), np.showFormat, stringResource(R.string.np_format_summary)) { v -> setNp { it.copy(showFormat = v) } }
-            SwitchRow(stringResource(R.string.np_rg), np.showReplayGain, stringResource(R.string.np_rg_summary)) { v -> setNp { it.copy(showReplayGain = v) } }
-            SwitchRow(stringResource(R.string.np_seekbar), np.showSeekBar) { v -> setNp { it.copy(showSeekBar = v) } }
-            SwitchRow(stringResource(R.string.np_controls), np.showControls) { v -> setNp { it.copy(showControls = v) } }
-            Spacer(Modifier.padding(16.dp))
         }
     }
 }
@@ -184,6 +150,7 @@ private fun themeLabel(context: android.content.Context, t: ThemeMode) = context
         ThemeMode.LIGHT -> R.string.theme_light
         ThemeMode.DARK -> R.string.theme_dark
         ThemeMode.BLACK -> R.string.theme_black
+        ThemeMode.TACTICAL -> R.string.theme_tactical
     },
 )
 
@@ -244,12 +211,6 @@ fun LibrarySettingsScreen(settings: AppSettings, onBack: () -> Unit) {
     SettingsScaffold(title = stringResource(R.string.set_library), onBack = onBack) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             SectionHeader(stringResource(R.string.set_music_folders))
-            if (l.folders.isEmpty()) {
-                Text(
-                    stringResource(R.string.set_music_folders_empty),
-                    Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
-                )
-            }
             l.folders.forEach { f ->
                 RemovableRow(f) { update { it.copy(library = it.library.copy(folders = it.library.folders - f)) }; needsRescan = true }
             }
@@ -257,10 +218,6 @@ fun LibrarySettingsScreen(settings: AppSettings, onBack: () -> Unit) {
 
             SectionHeader(stringResource(R.string.set_scan))
             Text(scanStatusText(context, scan, snapshot.tracks.size), Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
-            Text(
-                stringResource(R.string.set_scan_hint),
-                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 androidx.compose.material3.Button(enabled = !scan.running && l.folders.isNotEmpty(), onClick = { c.library.startScan(full = needsRescan); needsRescan = false }) {
                     Text(stringResource(R.string.set_scan_button))
@@ -275,10 +232,7 @@ fun LibrarySettingsScreen(settings: AppSettings, onBack: () -> Unit) {
             }
 
             SectionHeader(stringResource(R.string.set_file_access))
-            ClickRow(
-                stringResource(if (allFiles) R.string.access_all_files else R.string.access_media_only),
-                stringResource(if (allFiles) R.string.access_all_files_switch else R.string.access_media_only_switch),
-            ) {
+            ClickRow(stringResource(if (allFiles) R.string.access_all_files else R.string.access_media_only)) {
                 context.startActivity(StorageAccess.allFilesSettingsIntent(context))
             }
 
@@ -287,7 +241,7 @@ fun LibrarySettingsScreen(settings: AppSettings, onBack: () -> Unit) {
                 RemovableRow(f) { update { it.copy(library = it.library.copy(excludedFolders = it.library.excludedFolders - f)) }; needsRescan = true }
             }
             ClickRow(stringResource(R.string.set_add_excluded)) { pickFolder = "exclude" }
-            SwitchRow(stringResource(R.string.set_respect_nomedia), l.respectNomedia, stringResource(R.string.set_respect_nomedia_summary)) { v ->
+            SwitchRow(stringResource(R.string.set_respect_nomedia), l.respectNomedia) { v ->
                 update { it.copy(library = it.library.copy(respectNomedia = v)) }; needsRescan = true
             }
 
@@ -295,32 +249,41 @@ fun LibrarySettingsScreen(settings: AppSettings, onBack: () -> Unit) {
             TextRow(
                 stringResource(R.string.set_split_separators), l.splitSeparators.joinToString(" "),
                 summary = l.splitSeparators.joinToString(" ") { "“$it”" },
-                hint = stringResource(R.string.set_split_separators_hint),
             ) { v ->
                 val list = v.split(' ').filter { it.isNotBlank() }.ifEmpty { listOf(";") }
                 update { it.copy(library = it.library.copy(splitSeparators = list)) }; needsRescan = true
             }
             TextRow(
                 stringResource(R.string.set_multi_fields), l.multiValueFields.joinToString(" "),
-                hint = stringResource(R.string.set_multi_fields_hint),
             ) { v ->
                 val list = v.split(' ').map { it.trim().uppercase() }.filter { it.isNotEmpty() }
                 update { it.copy(library = it.library.copy(multiValueFields = list)) }; needsRescan = true
             }
-            SwitchRow(stringResource(R.string.set_ignore_articles), l.ignoreArticles, stringResource(R.string.set_ignore_articles_summary)) { v ->
+            SwitchRow(stringResource(R.string.set_ignore_articles), l.ignoreArticles) { v ->
                 update { it.copy(library = it.library.copy(ignoreArticles = v)) }
+            }
+            TextRow(stringResource(R.string.set_join_separator), settings.display.joinSeparator, summary = "“${settings.display.joinSeparator}”") { v ->
+                if (v.isNotEmpty()) update { it.copy(display = it.display.copy(joinSeparator = v)) }
             }
 
             SectionHeader(stringResource(R.string.kind_playlist))
-            ClickRow(stringResource(R.string.set_import_m3u), stringResource(R.string.set_import_m3u_summary)) {
+            SwitchRow(stringResource(R.string.smart_playlist_enable), l.smartPlaylist) { v ->
+                update { it.copy(library = it.library.copy(smartPlaylist = v)) }
+            }
+            if (l.smartPlaylist) {
+                SliderRow(stringResource(R.string.smart_playlist_size), l.smartPlaylistSize.toFloat(), 10f..200f, 10f, { context.getString(R.string.tracks_count, it.toInt()) }) { v ->
+                    update { it.copy(library = it.library.copy(smartPlaylistSize = v.toInt())) }
+                }
+            }
+            ClickRow(stringResource(R.string.set_import_m3u)) {
                 if (allFiles) pickM3u = true
                 else openM3u.launch(arrayOf("audio/x-mpegurl", "audio/mpegurl", "application/vnd.apple.mpegurl", "application/x-mpegurl", "*/*"))
             }
-            Text(stringResource(R.string.set_path_rules), Modifier.padding(start = 16.dp, top = 8.dp), style = MaterialTheme.typography.bodyMedium)
+            SectionHeader(stringResource(R.string.set_path_rules))
             l.playlistPathRules.forEach { r ->
                 RemovableRow("${r.from}  →  ${r.to}") { update { it.copy(library = it.library.copy(playlistPathRules = it.library.playlistPathRules - r)) } }
             }
-            ClickRow(stringResource(R.string.set_add_rule), stringResource(R.string.set_add_rule_summary)) { addRule = true }
+            ClickRow(stringResource(R.string.set_add_rule)) { addRule = true }
             Spacer(Modifier.padding(16.dp))
         }
     }
@@ -388,10 +351,6 @@ fun PlaybackSettingsScreen(settings: AppSettings, onBack: () -> Unit) {
             SwitchRow(stringResource(R.string.set_resume), settings.playback.resumeOnStart) { v ->
                 update { it.copy(playback = it.playback.copy(resumeOnStart = v)) }
             }
-            Text(
-                stringResource(R.string.set_playback_note),
-                Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -419,16 +378,9 @@ fun ReplayGainSettingsScreen(settings: AppSettings, onBack: () -> Unit) {
             SliderRow(stringResource(R.string.rg_preamp_untagged), rg.preampUntagged, -15f..15f, 0.5f, { "%+.1f dB".format(it) }) { v ->
                 update { it.copy(replayGain = it.replayGain.copy(preampUntagged = v)) }
             }
-            SwitchRow(stringResource(R.string.rg_prevent_clipping), rg.preventClipping, stringResource(R.string.rg_prevent_clipping_summary)) { v ->
+            SwitchRow(stringResource(R.string.rg_prevent_clipping), rg.preventClipping) { v ->
                 update { it.copy(replayGain = it.replayGain.copy(preventClipping = v)) }
             }
-            SwitchRow(stringResource(R.string.rg_show_on_now_playing), settings.display.nowPlaying.showReplayGain) { v ->
-                update { it.copy(display = it.display.copy(nowPlaying = it.display.nowPlaying.copy(showReplayGain = v))) }
-            }
-            Text(
-                stringResource(R.string.rg_note),
-                Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -471,8 +423,8 @@ fun AdvancedSettingsScreen(onBack: () -> Unit, onOpenTagDump: () -> Unit, onOpen
     }
     SettingsScaffold(title = stringResource(R.string.set_advanced), onBack = onBack) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            ClickRow(stringResource(R.string.tag_dump), stringResource(R.string.tag_dump_summary), onOpenTagDump)
-            ClickRow(stringResource(R.string.scan_errors), stringResource(R.string.scan_errors_summary), onOpenErrors)
+            ClickRow(stringResource(R.string.tag_dump), onClick = onOpenTagDump)
+            ClickRow(stringResource(R.string.scan_errors), onClick = onOpenErrors)
             SectionHeader(stringResource(R.string.set_manage_settings))
             ClickRow(stringResource(R.string.export_settings)) { export.launch("azsaplayer-settings.json") }
             ClickRow(stringResource(R.string.import_settings)) { import.launch(arrayOf("application/json", "text/plain", "*/*")) }
@@ -481,7 +433,7 @@ fun AdvancedSettingsScreen(onBack: () -> Unit, onOpenTagDump: () -> Unit, onOpen
                 runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
             }
             ListItem(headlineContent = { Text(stringResource(R.string.version)) }, supportingContent = { Text(version) })
-            ClickRow(stringResource(R.string.licenses), stringResource(R.string.licenses_summary), onOpenLicenses)
+            ClickRow(stringResource(R.string.licenses), onClick = onOpenLicenses)
         }
     }
 }
@@ -524,6 +476,35 @@ fun LicensesScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
             )
+        }
+    }
+}
+
+/** マニュアル：設定画面から外した説明をここにまとめる。 */
+@Composable
+fun ManualScreen(onBack: () -> Unit) {
+    val sections = listOf(
+        R.string.manual_h_home to R.string.manual_home,
+        R.string.manual_h_now_playing to R.string.manual_now_playing,
+        R.string.manual_h_album_flow to R.string.manual_album_flow,
+        R.string.manual_h_album_order to R.string.manual_album_order,
+        R.string.manual_h_rg to R.string.manual_rg,
+        R.string.manual_h_library to R.string.manual_library,
+        R.string.manual_h_tags to R.string.manual_tags,
+        R.string.manual_h_templates to R.string.manual_templates,
+        R.string.manual_h_playlists to R.string.manual_playlists,
+        R.string.manual_h_search to R.string.manual_search,
+    )
+    SettingsScaffold(title = stringResource(R.string.set_manual), onBack = onBack) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+            sections.forEach { (h, body) ->
+                SectionHeader(stringResource(h))
+                Text(
+                    stringResource(body, io.github.oke1943.azsaplayer.library.Template.FIELDS.joinToString(" ") { "<$it>" }),
+                    Modifier.padding(horizontal = 16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }

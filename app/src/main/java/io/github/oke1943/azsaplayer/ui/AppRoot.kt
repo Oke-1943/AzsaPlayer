@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -50,7 +52,6 @@ import io.github.oke1943.azsaplayer.ui.browse.TrackInfoScreen
 import io.github.oke1943.azsaplayer.ui.player.NowPlayingScreen
 import io.github.oke1943.azsaplayer.ui.player.QueueScreen
 import io.github.oke1943.azsaplayer.ui.settings.AdvancedSettingsScreen
-import io.github.oke1943.azsaplayer.ui.settings.DisplaySettingsScreen
 import io.github.oke1943.azsaplayer.ui.settings.HomeViewsScreen
 import io.github.oke1943.azsaplayer.ui.settings.LibrarySettingsScreen
 import io.github.oke1943.azsaplayer.ui.settings.PlaybackSettingsScreen
@@ -76,7 +77,19 @@ fun AppRoot() {
         return
     }
     MusicAppTheme(s.display) {
-        Surface(Modifier.fillMaxSize()) {
+        val tactical = io.github.oke1943.azsaplayer.ui.theme.LocalTactical.current
+        val root = if (tactical) with(io.github.oke1943.azsaplayer.ui.theme.Tactical) { Modifier.fillMaxSize().hexOverlay() } else Modifier.fillMaxSize()
+        // ステータスバー・ナビゲーションバーの明暗をアプリの配色に合わせる（端末がライトでも暗いテーマなら白い文字に）
+        val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        val activity = LocalContext.current as? androidx.activity.ComponentActivity
+        LaunchedEffect(dark, activity) {
+            val transparent = android.graphics.Color.TRANSPARENT
+            activity?.enableEdgeToEdge(
+                statusBarStyle = if (dark) androidx.activity.SystemBarStyle.dark(transparent) else androidx.activity.SystemBarStyle.light(transparent, transparent),
+                navigationBarStyle = if (dark) androidx.activity.SystemBarStyle.dark(transparent) else androidx.activity.SystemBarStyle.light(transparent, transparent),
+            )
+        }
+        Surface(root) {
             val context = LocalContext.current
             var hasStorageAccess by remember { mutableStateOf(StorageAccess.hasAny(context)) }
             LifecycleResumeEffect(Unit) {
@@ -159,7 +172,26 @@ private fun AppNavHost(settings: AppSettings) {
                 onOpenTrackInfo = { nav.navigate(Routes.track(it)) },
                 onOpenNowPlaying = { nav.navigate(Routes.NOW_PLAYING) },
                 onEditPlaylist = { nav.navigate(Routes.playlistEdit(it)) },
+                onEditAlbumOrder = { nav.navigate(Routes.albumOrder(viewId, level, path)) },
             )
+        }
+        composable(
+            "albumorder/{viewId}/{level}/{path}",
+            arguments = listOf(
+                navArgument("viewId") { type = NavType.StringType },
+                navArgument("level") { type = NavType.IntType },
+                navArgument("path") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val viewId = entry.arguments?.getString("viewId") ?: ""
+            val level = entry.arguments?.getInt("level") ?: 1
+            val path = remember(entry) { Routes.decodePath(entry.arguments?.getString("path") ?: "") }
+            val view = resolveView(settings, viewId)
+            if (view == null || path.isEmpty()) {
+                LaunchedEffect(Unit) { nav.popBackStack() }
+            } else {
+                io.github.oke1943.azsaplayer.ui.browse.AlbumOrderScreen(settings, view, level, path, onBack = { nav.popBackStack() })
+            }
         }
         composable(
             Routes.NOW_PLAYING,
@@ -176,6 +208,17 @@ private fun AppNavHost(settings: AppSettings) {
                 },
                 onOpenAlbumArtist = { p ->
                     nav.navigate(Routes.browse(Routes.ALBUM_ARTIST_VIEW_ID, 1, listOf(Selection(io.github.oke1943.azsaplayer.settings.ViewKind.ALBUM_ARTIST, p.id.toString(), p.name))))
+                },
+                onSwipeDown = { key, title ->
+                    // 直前の画面がそのアルバムの曲リストならそこへ戻る。違えば閉じてアルバムの曲リストを開く
+                    val prev = nav.previousBackStackEntry
+                    val prevAlbum = prev?.takeIf { it.destination.route == "browse/{viewId}/{level}/{path}" }
+                        ?.let { Routes.decodePath(it.arguments?.getString("path") ?: "").lastOrNull() }
+                    val backToAlbum = prevAlbum?.kind == io.github.oke1943.azsaplayer.settings.ViewKind.ALBUM && prevAlbum.key == key
+                    nav.popBackStack()
+                    if (!backToAlbum && key != null) {
+                        nav.navigate(Routes.browse(Routes.ALBUM_VIEW_ID, 1, listOf(Selection(io.github.oke1943.azsaplayer.settings.ViewKind.ALBUM, key, title))))
+                    }
                 },
             )
         }
@@ -212,9 +255,9 @@ private fun AppNavHost(settings: AppSettings) {
 private fun androidx.navigation.NavGraphBuilder.settingsGraph(nav: NavHostController, settings: AppSettings) {
     val back: () -> Unit = { nav.popBackStack() }
     composable(Routes.SETTINGS) { SettingsHomeScreen(onBack = back, onOpen = { nav.navigate(it) }) }
-    composable(Routes.SETTINGS_DISPLAY) {
-        DisplaySettingsScreen(settings, onBack = back, onOpenHomeViews = { nav.navigate(Routes.SETTINGS_HOME_VIEWS) })
-    }
+    composable(Routes.SETTINGS_APPEARANCE) { io.github.oke1943.azsaplayer.ui.settings.AppearanceSettingsScreen(settings, onBack = back) }
+    composable(Routes.SETTINGS_NOW_PLAYING) { io.github.oke1943.azsaplayer.ui.settings.NowPlayingItemsScreen(settings, onBack = back) }
+    composable(Routes.SETTINGS_MANUAL) { io.github.oke1943.azsaplayer.ui.settings.ManualScreen(onBack = back) }
     composable(Routes.SETTINGS_HOME_VIEWS) {
         HomeViewsScreen(settings, onBack = back, onEditView = { nav.navigate(Routes.viewEdit(it)) })
     }
@@ -287,3 +330,11 @@ private fun StoragePermissionScreen(onGranted: () -> Unit) {
         }
     }
 }
+
+/** ホームのビュー、または仮のビュー（再生画面や検索から開く）を探す。 */
+fun resolveView(settings: AppSettings, viewId: String): ViewConfig? =
+    settings.display.homeViews.firstOrNull { it.id == viewId }
+        ?: Routes.SYNTHETIC_VIEWS[viewId]?.let { kind ->
+            val home = settings.display.homeViews.firstOrNull { it.kind == kind && it.levels.firstOrNull() == kind }
+            home?.copy(id = viewId) ?: ViewConfig(id = viewId, kind = kind)
+        }

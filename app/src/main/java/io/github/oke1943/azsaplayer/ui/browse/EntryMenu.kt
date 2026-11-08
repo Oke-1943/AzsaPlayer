@@ -58,7 +58,8 @@ fun EntryMenu(
     var addToPlaylist by remember { mutableStateOf(false) }
     var rename by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    val isPlaylistGroup = entry is GroupEntry && entry.kind == ViewKind.PLAYLIST
+    // 「よく聞く音楽」は自動で作るので、名前の変更・削除はできない
+    val isPlaylistGroup = entry is GroupEntry && entry.kind == ViewKind.PLAYLIST && entry.key != io.github.oke1943.azsaplayer.playlist.SMART_ID.toString()
 
     fun done() = onDismiss()
 
@@ -77,7 +78,7 @@ fun EntryMenu(
                 MenuItem(stringResource(R.string.menu_add_to_queue)) { c.player.addToQueue(ids); toast(context, context.getString(R.string.toast_added_to_queue)); done() }
                 MenuItem(stringResource(R.string.menu_add_to_playlist)) { addToPlaylist = true }
                 if (entry is TrackEntry) {
-                    if (inPlaylist != null) {
+                    if (inPlaylist != null && inPlaylist != io.github.oke1943.azsaplayer.playlist.SMART_ID) {
                         MenuItem(stringResource(R.string.menu_remove_from_playlist)) {
                             scope.launch {
                                 val list = c.playlists.trackIds(inPlaylist).toMutableList()
@@ -132,7 +133,8 @@ fun AddToPlaylistDialog(ids: List<Long>, onDone: () -> Unit) {
     val context = LocalContext.current
     val c = context.container
     val scope = rememberCoroutineScope()
-    val playlists by c.playlists.playlists.collectAsStateWithLifecycle(initialValue = emptyList<PlaylistInfo>())
+    // 追加先は保存してあるプレイリストだけ（「よく聞く音楽」は自動）
+    val playlists by c.playlists.userPlaylists.collectAsStateWithLifecycle(initialValue = emptyList<PlaylistInfo>())
     var newName by remember { mutableStateOf(false) }
 
     if (newName) {

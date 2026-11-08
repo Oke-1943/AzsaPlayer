@@ -18,7 +18,9 @@ class AppContainer(context: Context) {
     val db = AppDatabase.create(context)
     val settings = SettingsRepository(context)
     val library = LibraryRepository(context, db, settings, scope)
-    val playlists = PlaylistRepository(db, library, settings)
+    val playlists = PlaylistRepository(db, library, settings) {
+        AppLocale.wrap(context).getString(R.string.smart_playlist_name)
+    }
     val artwork = ArtworkLoader(context)
     val player = PlayerConnection(context, scope)
 }

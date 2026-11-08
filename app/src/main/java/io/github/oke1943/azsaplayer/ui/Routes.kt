@@ -13,8 +13,10 @@ object Routes {
     const val NOW_PLAYING = "now"
     const val QUEUE = "queue"
     const val SETTINGS = "settings"
-    const val SETTINGS_DISPLAY = "settings/display"
+    const val SETTINGS_APPEARANCE = "settings/appearance"
     const val SETTINGS_HOME_VIEWS = "settings/home"
+    const val SETTINGS_NOW_PLAYING = "settings/nowplaying"
+    const val SETTINGS_MANUAL = "settings/manual"
     const val SETTINGS_LIBRARY = "settings/library"
     const val SETTINGS_PLAYBACK = "settings/playback"
     const val SETTINGS_RG = "settings/rg"
@@ -41,6 +43,7 @@ object Routes {
 
     fun browse(viewId: String, level: Int, path: List<Selection>) = "browse/$viewId/$level/${encodePath(path)}"
     fun viewEdit(viewId: String) = "settings/view/$viewId"
+    fun albumOrder(viewId: String, level: Int, path: List<Selection>) = "albumorder/$viewId/$level/${encodePath(path)}"
     fun track(id: Long) = "track/$id"
     fun playlistEdit(id: Long) = "playlist/$id"
 

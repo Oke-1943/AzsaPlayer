@@ -35,11 +35,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.oke1943.azsaplayer.container
-import io.github.oke1943.azsaplayer.library.Template
 import io.github.oke1943.azsaplayer.settings.AppSettings
 import io.github.oke1943.azsaplayer.settings.Layout
 import io.github.oke1943.azsaplayer.settings.ListStyle
 import io.github.oke1943.azsaplayer.settings.SortBy
+import io.github.oke1943.azsaplayer.settings.AlbumOrder
+import io.github.oke1943.azsaplayer.settings.NpItem
+import io.github.oke1943.azsaplayer.settings.StartTab
 import io.github.oke1943.azsaplayer.settings.ViewConfig
 import io.github.oke1943.azsaplayer.settings.ViewKind
 import io.github.oke1943.azsaplayer.ui.common.ChoiceRow
@@ -57,16 +59,22 @@ import io.github.oke1943.azsaplayer.ui.common.displayTitle
 import io.github.oke1943.azsaplayer.R
 import androidx.compose.ui.res.stringResource
 
-/** ホームの表示項目（6.1）：任意の数を選び、ドラッグで順序を変える。 */
+/**
+ * ホームの設定：タブ（ドラッグで並べ替え・×で外す・＋で追加）と、起動時のタブ・検索ボタン・アルバムの並び順。
+ * 再生画面の設定（[NowPlayingItemsScreen]）も同じ操作方式にそろえている。
+ */
 @Composable
 fun HomeViewsScreen(settings: AppSettings, onBack: () -> Unit, onEditView: (String) -> Unit) {
     val context = LocalContext.current
     val c = context.container
     val scope = rememberCoroutineScope()
-    var views by remember { mutableStateOf(settings.display.homeViews) }
-    LaunchedEffect(settings.display.homeViews) { views = settings.display.homeViews }
+    val update = rememberUpdater()
+    val d = settings.display
+    var views by remember { mutableStateOf(d.homeViews) }
+    LaunchedEffect(d.homeViews) { views = d.homeViews }
     var adding by remember { mutableStateOf(false) }
     var customTagFor by remember { mutableStateOf(false) }
+    var pendingOrder by remember { mutableStateOf<AlbumOrder?>(null) }
 
     fun save(list: List<ViewConfig>) {
         views = list
@@ -75,44 +83,73 @@ fun HomeViewsScreen(settings: AppSettings, onBack: () -> Unit, onEditView: (Stri
 
     val listState = rememberLazyListState()
     val reorder = rememberReorderableLazyListState(listState) { from, to ->
-        views = views.toMutableList().apply { add(to.index, removeAt(from.index)) }
+        // 先頭の見出しの分だけ添字がずれる
+        val f = from.index - 1
+        val t = to.index - 1
+        if (f in views.indices && t in views.indices) views = views.toMutableList().apply { add(t, removeAt(f)) }
     }
 
-    SettingsScaffold(title = stringResource(R.string.set_home_views), onBack = onBack) {
-        Text(
-            stringResource(R.string.home_views_hint),
-            Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        LazyColumn(state = listState, modifier = Modifier.weight(1f, fill = false)) {
+    SettingsScaffold(title = stringResource(R.string.set_home), onBack = onBack) {
+        LazyColumn(state = listState) {
+            item(key = "h:tabs") { SectionHeader(stringResource(R.string.set_home_views)) }
             items(views, key = { it.id }) { v ->
                 ReorderableItem(reorder, key = v.id) { dragging ->
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .background(if (dragging) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface)
-                            .clickable { onEditView(v.id) }
-                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(onClick = {}, modifier = Modifier.draggableHandle(onDragStopped = { save(views) })) {
-                            Icon(Icons.Filled.DragHandle, contentDescription = stringResource(R.string.reorder))
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text(v.displayTitle())
-                            Text(
-                                v.levels.joinToString(" → ") { context.getString(it.labelRes) }, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        IconButton(enabled = views.size > 1, onClick = { save(views.filter { it.id != v.id }) }) {
-                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.remove))
-                        }
-                    }
+                    OrderRow(
+                        title = v.displayTitle(),
+                        subtitle = v.levels.joinToString(" → ") { context.getString(it.labelRes) },
+                        dragging = dragging,
+                        dragHandle = Modifier.draggableHandle(onDragStopped = { save(views) }),
+                        removable = views.size > 1,
+                        onRemove = { save(views.filter { it.id != v.id }) },
+                        onClick = { onEditView(v.id) },
+                    )
+                }
+            }
+            item(key = "add") { ClickRow(stringResource(R.string.add_view)) { adding = true } }
+            item(key = "h:other") { SectionHeader(stringResource(R.string.set_home_other)) }
+            item(key = "start") {
+                ChoiceRow(
+                    stringResource(R.string.set_start_tab), StartTab.entries, d.startTab,
+                    { context.getString(if (it == StartTab.FIRST) R.string.set_start_tab_first else R.string.set_start_tab_last) },
+                ) { v -> update { it.copy(display = it.display.copy(startTab = v)) } }
+            }
+            item(key = "search") {
+                SwitchRow(stringResource(R.string.set_show_search), d.showSearchButton) { v -> update { it.copy(display = it.display.copy(showSearchButton = v)) } }
+            }
+            item(key = "order") {
+                ChoiceRow(stringResource(R.string.album_order_default), AlbumOrder.entries - AlbumOrder.MANUAL, d.albumOrder, { context.getString(it.labelRes) }) { v ->
+                    if (d.artistAlbumOrder.isEmpty()) update { it.copy(display = it.display.copy(albumOrder = v)) } else pendingOrder = v
                 }
             }
         }
-        ClickRow(stringResource(R.string.add_view)) { adding = true }
     }
 
+    // 一括変更：アーティストごとの設定を残すか、すべて既定にそろえるか
+    pendingOrder?.let { order ->
+        AlertDialog(
+            onDismissRequest = { pendingOrder = null },
+            title = { Text(stringResource(order.labelRes)) },
+            text = {
+                Column {
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            update { it.copy(display = it.display.copy(albumOrder = order)) }
+                            pendingOrder = null
+                        },
+                        headlineContent = { Text(stringResource(R.string.album_order_keep_custom)) },
+                    )
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            update { it.copy(display = it.display.copy(albumOrder = order, artistAlbumOrder = emptyMap(), customAlbumOrder = emptyMap())) }
+                            pendingOrder = null
+                        },
+                        headlineContent = { Text(stringResource(R.string.album_order_reset_custom, d.artistAlbumOrder.size)) },
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { pendingOrder = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     if (adding) {
         AlertDialog(
             onDismissRequest = { adding = false },
@@ -125,7 +162,7 @@ fun HomeViewsScreen(settings: AppSettings, onBack: () -> Unit, onEditView: (Stri
                                 adding = false
                                 if (k == ViewKind.CUSTOM) customTagFor = true else save(views + ViewConfig.create(k))
                             },
-                            headlineContent = { Text(if (k == ViewKind.CUSTOM) stringResource(R.string.add_view_custom) else stringResource(k.labelRes)) },
+                            headlineContent = { Text(stringResource(k.labelRes)) },
                         )
                     }
                 }
@@ -134,9 +171,103 @@ fun HomeViewsScreen(settings: AppSettings, onBack: () -> Unit, onEditView: (Stri
         )
     }
     if (customTagFor) {
-        TextInputDialog(stringResource(R.string.custom_tag_title), "", hint = stringResource(R.string.custom_tag_hint), onDismiss = { customTagFor = false }) { tag ->
+        TextInputDialog(stringResource(R.string.custom_tag_title), "", onDismiss = { customTagFor = false }) { tag ->
             if (tag.isNotBlank()) save(views + ViewConfig.create(ViewKind.CUSTOM, tag.trim().uppercase()))
             customTagFor = false
+        }
+    }
+}
+
+/** 再生画面の設定：表示する項目（ホームのタブと同じ操作）と、長い値の自動スクロール。 */
+@Composable
+fun NowPlayingItemsScreen(settings: AppSettings, onBack: () -> Unit) {
+    val update = rememberUpdater()
+    var items by remember { mutableStateOf(settings.display.nowPlaying.items) }
+    LaunchedEffect(settings.display.nowPlaying.items) { items = settings.display.nowPlaying.items }
+    var adding by remember { mutableStateOf(false) }
+
+    fun save(list: List<NpItem>) {
+        items = list
+        update { it.copy(display = it.display.copy(nowPlaying = it.display.nowPlaying.copy(items = list))) }
+    }
+
+    val listState = rememberLazyListState()
+    val reorder = rememberReorderableLazyListState(listState) { from, to ->
+        val f = from.index - 1
+        val t = to.index - 1
+        if (f in items.indices && t in items.indices) items = items.toMutableList().apply { add(t, removeAt(f)) }
+    }
+    val hidden = NpItem.entries.filter { it !in items }
+
+    SettingsScaffold(title = stringResource(R.string.set_now_playing), onBack = onBack) {
+        LazyColumn(state = listState) {
+            item(key = "h:items") { SectionHeader(stringResource(R.string.set_now_playing_items)) }
+            items(items, key = { it.name }) { item ->
+                ReorderableItem(reorder, key = item.name) { dragging ->
+                    OrderRow(
+                        title = stringResource(item.labelRes),
+                        dragging = dragging,
+                        dragHandle = Modifier.draggableHandle(onDragStopped = { save(items) }),
+                        removable = true,
+                        onRemove = { save(items - item) },
+                    )
+                }
+            }
+            if (hidden.isNotEmpty()) item(key = "add") { ClickRow(stringResource(R.string.add_item)) { adding = true } }
+            item(key = "h:other") { SectionHeader(stringResource(R.string.set_home_other)) }
+            item(key = "marquee") {
+                SwitchRow(stringResource(R.string.np_marquee), settings.display.nowPlaying.marquee) { v ->
+                    update { it.copy(display = it.display.copy(nowPlaying = it.display.nowPlaying.copy(marquee = v))) }
+                }
+            }
+        }
+    }
+    if (adding) {
+        AlertDialog(
+            onDismissRequest = { adding = false },
+            title = { Text(stringResource(R.string.add_item)) },
+            text = {
+                LazyColumn {
+                    items(hidden) { k ->
+                        ListItem(
+                            modifier = Modifier.clickable { adding = false; save(items + k) },
+                            headlineContent = { Text(stringResource(k.labelRes)) },
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { adding = false }) { Text(stringResource(R.string.close)) } },
+        )
+    }
+}
+
+/** 並べ替えできる1行（つまみ・名前・削除ボタン）。 */
+@Composable
+private fun OrderRow(
+    title: String,
+    subtitle: String? = null,
+    dragging: Boolean,
+    dragHandle: Modifier,
+    removable: Boolean,
+    onRemove: () -> Unit,
+    onClick: (() -> Unit)? = null,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .background(if (dragging) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = {}, modifier = dragHandle) {
+            Icon(Icons.Filled.DragHandle, contentDescription = stringResource(R.string.reorder))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title)
+            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+        IconButton(enabled = removable, onClick = onRemove) {
+            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.remove))
         }
     }
 }
@@ -164,9 +295,9 @@ fun ViewEditScreen(settings: AppSettings, viewId: String, onBack: () -> Unit) {
 
     SettingsScaffold(title = view.displayTitle(), onBack = onBack) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            TextRow(stringResource(R.string.tab_name), view.title, summary = view.displayTitle(), hint = stringResource(R.string.tab_name_hint)) { v -> save(view.copy(title = v.trim())) }
+            TextRow(stringResource(R.string.tab_name), view.title, summary = view.displayTitle()) { v -> save(view.copy(title = v.trim())) }
             if (view.kind == ViewKind.CUSTOM) {
-                TextRow(stringResource(R.string.custom_tag_title), view.customTag, hint = stringResource(R.string.custom_tag_existing, tagKeys.take(40).joinToString(" "))) { v ->
+                TextRow(stringResource(R.string.custom_tag_title), view.customTag, hint = tagKeys.take(40).joinToString(" ")) { v ->
                     if (v.isNotBlank()) save(view.copy(customTag = v.trim().uppercase()))
                 }
             }
@@ -179,7 +310,7 @@ fun ViewEditScreen(settings: AppSettings, viewId: String, onBack: () -> Unit) {
             // 先頭（ビューの種類）と末尾（曲）以外の段は省いたり追加したりできる
             view.levels.forEachIndexed { i, k ->
                 if (i in 1 until view.levels.size - 1) {
-                    ClickRow(stringResource(R.string.level_remove, stringResource(k.labelRes)), stringResource(R.string.level_remove_example)) {
+                    ClickRow(stringResource(R.string.level_remove, stringResource(k.labelRes))) {
                         save(view.copy(levels = view.levels.filterIndexed { j, _ -> j != i }, styles = view.levels.indices.filter { it != i }.map { view.styleAt(it) }))
                     }
                 }
@@ -192,9 +323,14 @@ fun ViewEditScreen(settings: AppSettings, viewId: String, onBack: () -> Unit) {
                 val style = view.styleAt(level)
                 SectionHeader(stringResource(R.string.level_header, level + 1, if (kind == ViewKind.CUSTOM) view.customTag else stringResource(kind.labelRes)))
                 if (view.kind == ViewKind.ALBUM_FLOW && level == 0) {
-                    // Album Flow 本体は並び順だけを選べる
-                    ChoiceRow(stringResource(R.string.sort), listOf(SortBy.ARTIST, SortBy.SORT_KEY, SortBy.YEAR, SortBy.DATE_ADDED), style.sortBy, { context.getString(if (it == SortBy.ARTIST) R.string.sort_album_artist else if (it == SortBy.SORT_KEY) R.string.sort_album_title else it.labelRes) }) { v -> setStyle(level) { it.copy(sortBy = v) } }
-                    SwitchRow(stringResource(R.string.descending), style.descending) { v -> setStyle(level) { it.copy(descending = v) } }
+                    // Album Flow 本体は並び順だけを選べる。ランダムは開くたびに並びが変わる
+                    ChoiceRow(
+                        stringResource(R.string.sort), listOf(SortBy.ARTIST, SortBy.SORT_KEY, SortBy.YEAR, SortBy.DATE_ADDED, SortBy.RANDOM), style.sortBy,
+                        { context.getString(if (it == SortBy.ARTIST) R.string.sort_album_artist else if (it == SortBy.SORT_KEY) R.string.sort_album_title else it.labelRes) },
+                    ) { v -> setStyle(level) { it.copy(sortBy = v) } }
+                    if (style.sortBy != SortBy.RANDOM) {
+                        SwitchRow(stringResource(R.string.descending), style.descending) { v -> setStyle(level) { it.copy(descending = v) } }
+                    }
                     return@forEachIndexed
                 }
                 ChoiceRow(stringResource(R.string.layout), Layout.entries, style.layout, { context.getString(if (it == Layout.LIST) R.string.layout_list else R.string.layout_grid) }) { v -> setStyle(level) { it.copy(layout = v) } }
@@ -205,15 +341,18 @@ fun ViewEditScreen(settings: AppSettings, viewId: String, onBack: () -> Unit) {
                 if (style.showArtwork && style.layout == Layout.LIST) {
                     SliderRow(stringResource(R.string.artwork_size), style.artworkSize.toFloat(), 32f..120f, 4f, { "${it.toInt()}dp" }) { v -> setStyle(level) { it.copy(artworkSize = v.toInt()) } }
                 }
-                val hint = stringResource(R.string.template_hint, Template.FIELDS.joinToString(" ") { "<$it>" })
-                TextRow(stringResource(R.string.line1), style.line1, summary = style.line1.ifEmpty { stringResource(R.string.line1_default) }, hint = hint + "\n" + stringResource(R.string.line1_hint)) { v ->
+                TextRow(stringResource(R.string.line1), style.line1, summary = style.line1.ifEmpty { "<Name>" }) { v ->
                     setStyle(level) { it.copy(line1 = v) }
                 }
-                TextRow(stringResource(R.string.line2), style.line2, summary = style.line2.ifEmpty { stringResource(R.string.line2_default) }, hint = hint + "\n" + stringResource(R.string.line2_hint)) { v ->
+                TextRow(stringResource(R.string.line2), style.line2, summary = style.line2.ifEmpty { "—" }) { v ->
                     setStyle(level) { it.copy(line2 = v) }
                 }
-                ChoiceRow(stringResource(R.string.sort), sortOptions(kind), style.sortBy, { context.getString(it.labelRes) }) { v -> setStyle(level) { it.copy(sortBy = v) } }
-                SwitchRow(stringResource(R.string.descending), style.descending) { v -> setStyle(level) { it.copy(descending = v) } }
+                // 人物の下のアルバムの並びは「ホーム > アーティストのアルバムの並び順」とアーティストごとのカスタム順で決まる
+                val personAlbums = kind == ViewKind.ALBUM && view.levels.getOrNull(level - 1) in io.github.oke1943.azsaplayer.library.PERSON_KINDS
+                if (!personAlbums) {
+                    ChoiceRow(stringResource(R.string.sort), sortOptions(kind), style.sortBy, { context.getString(it.labelRes) }) { v -> setStyle(level) { it.copy(sortBy = v) } }
+                    SwitchRow(stringResource(R.string.descending), style.descending) { v -> setStyle(level) { it.copy(descending = v) } }
+                }
                 SwitchRow(stringResource(R.string.fast_scroll_index), style.showIndex) { v -> setStyle(level) { it.copy(showIndex = v) } }
             }
             Spacer(Modifier.padding(24.dp))

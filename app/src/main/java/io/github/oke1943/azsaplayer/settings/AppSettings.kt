@@ -19,7 +19,7 @@ data class AppSettings(
 )
 
 @Serializable
-enum class ThemeMode { SYSTEM, LIGHT, DARK, BLACK }
+enum class ThemeMode { SYSTEM, LIGHT, DARK, BLACK, TACTICAL }
 
 @Serializable
 enum class StartTab { FIRST, LAST }
@@ -38,10 +38,49 @@ data class DisplaySettings(
     /** ホーム右上に検索ボタンを置く（ver.5）。 */
     val showSearchButton: Boolean = true,
     val nowPlaying: NowPlayingSettings = NowPlayingSettings(),
+    /** アーティストのアルバム一覧のソート順（全アーティスト共通の既定）。 */
+    val albumOrder: AlbumOrder = AlbumOrder.YEAR_ASC,
+    /** アーティストごとのソート順：人物の比較キー → ソート順（MANUAL なら [customAlbumOrder] の並び）。 */
+    val artistAlbumOrder: Map<String, AlbumOrder> = emptyMap(),
+    /** 手動で並べ替えたアルバムの並び：人物の比較キー → アルバムキーの並び。 */
+    val customAlbumOrder: Map<String, List<String>> = emptyMap(),
 )
+
+/** アーティストのアルバム一覧の並び順。 */
+@Serializable
+enum class AlbumOrder(@StringRes val labelRes: Int) {
+    YEAR_ASC(R.string.album_order_year_asc),
+    YEAR_DESC(R.string.album_order_year_desc),
+    TITLE(R.string.album_order_title),
+    ADDED_NEWEST(R.string.album_order_added_newest),
+    ADDED_OLDEST(R.string.album_order_added_oldest),
+    /** アーティストごとの設定でだけ選べる：ドラッグで並べた順。 */
+    MANUAL(R.string.album_order_manual),
+}
+
+/** 再生中画面に置く要素。並びは [NowPlayingSettings.items] の順。 */
+@Serializable
+enum class NpItem(@StringRes val labelRes: Int) {
+    ARTWORK(R.string.np_artwork),
+    TITLE(R.string.np_title),
+    ARTIST(R.string.np_artist),
+    ALBUM(R.string.np_album),
+    FORMAT(R.string.np_format),
+    REPLAYGAIN(R.string.np_rg),
+    SEEKBAR(R.string.np_seekbar),
+    CONTROLS(R.string.np_controls);
+
+    companion object {
+        val DEFAULT = listOf(ARTWORK, TITLE, ARTIST, ALBUM, SEEKBAR, CONTROLS)
+    }
+}
 
 @Serializable
 data class NowPlayingSettings(
+    /** 表示する要素とその順（ver.8）。以下の show* は旧版の設定の読み込み用。 */
+    val items: List<NpItem> = NpItem.DEFAULT,
+    /** 表示しきれない長さの曲名・アーティスト・アルバムを自動で横に流す。 */
+    val marquee: Boolean = true,
     val showArtwork: Boolean = true,
     val showTitle: Boolean = true,
     val showArtist: Boolean = true,
@@ -82,6 +121,8 @@ enum class SortBy(@StringRes val labelRes: Int) {
     DATE_ADDED(R.string.sort_date_added),
     TRACK_NUMBER(R.string.sort_track_number),
     COUNT(R.string.sort_count),
+    /** Album Flow 用：開くたびに並びを変える。 */
+    RANDOM(R.string.sort_random),
 }
 
 @Serializable
@@ -205,6 +246,10 @@ data class LibrarySettings(
     val ignoreArticles: Boolean = false,
     /** M3U内のWindowsパスを端末上のパスへ置き換える規則（8章）。 */
     val playlistPathRules: List<PathRule> = emptyList(),
+    /** 再生の記録から「よく聞く音楽」のプレイリストを自動で作る。 */
+    val smartPlaylist: Boolean = true,
+    /** 「よく聞く音楽」の曲数。 */
+    val smartPlaylistSize: Int = 50,
 )
 
 @Serializable

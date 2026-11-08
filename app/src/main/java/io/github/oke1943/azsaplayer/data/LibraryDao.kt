@@ -191,4 +191,8 @@ interface HistoryDao {
 
     @Query("SELECT * FROM play_history ORDER BY playedAt DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<PlayHistoryEntity>
+
+    /** 「よく聞く音楽」の計算用。記録が増えるたびに流れ直す。 */
+    @Query("SELECT * FROM play_history WHERE playedAt >= :since")
+    fun since(since: Long): kotlinx.coroutines.flow.Flow<List<PlayHistoryEntity>>
 }

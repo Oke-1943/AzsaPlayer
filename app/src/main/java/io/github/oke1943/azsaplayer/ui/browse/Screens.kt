@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
@@ -89,8 +90,17 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val scan by c.library.scan.collectAsStateWithLifecycle()
 
+    // Album Flow のタブを開いた回数（別のタブから移ってきたとき・起動時だけ数える。アルバムから戻ったときは数えない）
+    var flowVisit by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
+    var lastPage by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(-1) }
     LaunchedEffect(pager, views) {
-        snapshotFlow { pager.currentPage }.collect { page -> views.getOrNull(page)?.let { c.settings.setLastTab(it.id) } }
+        snapshotFlow { pager.currentPage }.collect { page ->
+            views.getOrNull(page)?.let { c.settings.setLastTab(it.id) }
+            if (page != lastPage) {
+                if (views.getOrNull(page)?.kind == ViewKind.ALBUM_FLOW) flowVisit++
+                lastPage = page
+            }
+        }
     }
 
     Scaffold(
@@ -138,6 +148,7 @@ fun HomeScreen(
                     onOpenGroup = { onOpenGroup(view, it) },
                     onOpenTrackInfo = onOpenTrackInfo,
                     bottomPadding = maxOf(padding.calculateBottomPadding(), navBarBottom()),
+                    visit = flowVisit,
                 )
             } else {
                 BrowseList(
@@ -164,23 +175,33 @@ fun BrowseScreen(
     onOpenTrackInfo: (Long) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onEditPlaylist: (Long) -> Unit,
+    /** アーティストのアルバムの並び順を編集する（ver.0.6.2）。 */
+    onEditAlbumOrder: () -> Unit = {},
 ) {
     val c = LocalContext.current.container
     // 仮のビュー（再生画面や検索から開く）は、ホームにある同じ種類のビューの形式を借りる
-    val view = settings.display.homeViews.firstOrNull { it.id == viewId }
-        ?: io.github.oke1943.azsaplayer.ui.Routes.SYNTHETIC_VIEWS[viewId]?.let { kind ->
-            val home = settings.display.homeViews.firstOrNull { it.kind == kind && it.levels.firstOrNull() == kind }
-            home?.copy(id = viewId) ?: ViewConfig(id = viewId, kind = kind)
-        }
+    val view = io.github.oke1943.azsaplayer.ui.resolveView(settings, viewId)
     if (view == null) { onBack(); return }
     val scope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
     val playlists by c.playlists.playlists.collectAsStateWithLifecycle(initialValue = emptyList<PlaylistInfo>())
 
+    val personAlbums = view.levels.getOrNull(level) == ViewKind.ALBUM && path.lastOrNull()?.kind in io.github.oke1943.azsaplayer.library.PERSON_KINDS
+
     suspend fun pathTracks(): List<Long> = withContext(Dispatchers.Default) {
-        val engine = BrowseEngine(c.library.snapshot.value, SortRules(settings.library.ignoreArticles), playlists, c.library::customValues)
+        val engine = BrowseEngine(
+            c.library.snapshot.value, SortRules(settings.library.ignoreArticles), playlists, c.library::customValues,
+            albumOrder = settings.display.albumOrder, artistAlbumOrder = settings.display.artistAlbumOrder,
+            customAlbumOrder = settings.display.customAlbumOrder,
+        )
         val tracks = engine.tracksFor(view, path).filter { it.e.playable }
-        if (path.lastOrNull()?.kind == ViewKind.PLAYLIST) tracks.map { it.id }
+        if (personAlbums) {
+            // アーティストの全曲：画面に並んでいるアルバムの順（カスタム順を含む）→ ディスク・トラック番号順
+            val inPath = tracks.map { it.id }.toHashSet()
+            engine.entries(view, level, path).filterIsInstance<GroupEntry>().flatMap { g ->
+                g.tracks.filter { it.id in inPath }.sortedWith(compareBy({ it.e.discNo ?: 1 }, { it.e.trackNo ?: Int.MAX_VALUE }))
+            }.map { it.id }
+        } else if (path.lastOrNull()?.kind == ViewKind.PLAYLIST) tracks.map { it.id }
         else tracks.sortedWith(compareBy({ it.album.year ?: Int.MAX_VALUE }, { it.album.titleSort ?: it.album.title }, { it.e.discNo ?: 1 }, { it.e.trackNo ?: Int.MAX_VALUE }))
             .map { it.id }
     }
@@ -198,7 +219,7 @@ fun BrowseScreen(
                         DropdownMenuItem(text = { Text(stringResource(R.string.shuffle_by_album)) }, onClick = { menu = false; scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.ALBUMS) } })
                         DropdownMenuItem(text = { Text(stringResource(R.string.menu_add_to_queue)) }, onClick = { menu = false; scope.launch { c.player.addToQueue(pathTracks()) } })
                         val playlistId = path.lastOrNull()?.takeIf { it.kind == ViewKind.PLAYLIST }?.key?.toLongOrNull()
-                        if (playlistId != null) {
+                        if (playlistId != null && playlistId != io.github.oke1943.azsaplayer.playlist.SMART_ID) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.reorder_edit)) }, onClick = { menu = false; onEditPlaylist(playlistId) })
                         }
                     }
@@ -216,15 +237,34 @@ fun BrowseScreen(
                 onOpenGroup = { onOpenGroup(view, it) },
                 onOpenTrackInfo = onOpenTrackInfo,
                 contentPadding = PaddingValues(bottom = maxOf(padding.calculateBottomPadding(), navBarBottom())),
-                header = if (album != null && trackLevel) {
-                    {
-                        AlbumHeader(
-                            album, settings.display.joinSeparator,
-                            onPlay = { scope.launch { c.player.play(pathTracks()) } },
-                            onShuffle = { scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.TRACKS) } },
-                        )
+                header = when {
+                    album != null && trackLevel -> {
+                        {
+                            AlbumHeader(
+                                album, settings.display.joinSeparator,
+                                onPlay = { scope.launch { c.player.play(pathTracks()) } },
+                                onShuffle = { scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.TRACKS) } },
+                            )
+                        }
                     }
-                } else null,
+                    personAlbums -> {
+                        {
+                            val sel = path.last()
+                            val personTracks = remember(snapshot, sel) {
+                                BrowseEngine(snapshot, SortRules(false), playlists, c.library::customValues).tracksFor(view, path)
+                            }
+                            ArtistHeader(
+                                name = sel.title,
+                                albums = personTracks.map { it.album.key }.distinct().size,
+                                tracks = personTracks.size,
+                                onPlay = { scope.launch { c.player.play(pathTracks()) } },
+                                onShuffle = { scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.TRACKS) } },
+                                onEditOrder = onEditAlbumOrder,
+                            )
+                        }
+                    }
+                    else -> null
+                },
                 showTrackNumbers = album != null && trackLevel && view.styleAt(level).sortBy == io.github.oke1943.azsaplayer.settings.SortBy.TRACK_NUMBER,
             )
         }
@@ -240,6 +280,33 @@ fun SmallLabel(text: String) {
 @Composable
 private fun navBarBottom() =
     androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+/** アーティストのアルバム一覧の見出し：全曲の再生・シャッフルと、アルバムの並び順の編集。 */
+@Composable
+private fun ArtistHeader(name: String, albums: Int, tracks: Int, onPlay: () -> Unit, onShuffle: () -> Unit, onEditOrder: () -> Unit) {
+    Column {
+        Text(
+            name, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+        )
+        Text(
+            stringResource(R.string.albums_and_tracks, albums, tracks), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.TextButton(onClick = onPlay) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                Text(stringResource(R.string.play), Modifier.padding(start = 4.dp))
+            }
+            IconButton(onClick = onShuffle) { Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.menu_shuffle)) }
+            Box(Modifier.weight(1f))
+            IconButton(onClick = onEditOrder) {
+                Icon(androidx.compose.material.icons.Icons.Filled.SwapVert, contentDescription = stringResource(R.string.album_order))
+            }
+        }
+        androidx.compose.material3.HorizontalDivider()
+    }
+}
 
 /** アルバム画面の見出し：ジャケットと基本情報、再生ボタン。 */
 @Composable

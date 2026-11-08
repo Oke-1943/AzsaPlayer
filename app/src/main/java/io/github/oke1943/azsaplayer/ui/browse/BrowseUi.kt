@@ -80,9 +80,15 @@ fun rememberEntries(view: ViewConfig, level: Int, path: List<Selection>, setting
     val labels = LocalBrowseLabels.current
     val snapshot by c.library.snapshot.collectAsStateWithLifecycle()
     val playlists by c.playlists.playlists.collectAsStateWithLifecycle(initialValue = emptyList<PlaylistInfo>())
-    val entries by produceState<List<BrowseEntry>?>(null, snapshot, playlists, view, level, path, settings.library.ignoreArticles) {
+    val entries by produceState<List<BrowseEntry>?>(
+        null, snapshot, playlists, view, level, path, settings.library.ignoreArticles,
+        settings.display.albumOrder, settings.display.artistAlbumOrder, settings.display.customAlbumOrder,
+    ) {
         value = withContext(Dispatchers.Default) {
-            BrowseEngine(snapshot, SortRules(settings.library.ignoreArticles), playlists, c.library::customValues, labels)
+            BrowseEngine(
+                snapshot, SortRules(settings.library.ignoreArticles), playlists, c.library::customValues, labels,
+                settings.display.albumOrder, settings.display.artistAlbumOrder, settings.display.customAlbumOrder,
+            )
                 .entries(view, level, path)
         }
     }

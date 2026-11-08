@@ -118,6 +118,15 @@ fun SettingsScaffold(
 
 @Composable
 fun SectionHeader(text: String) {
+    if (io.github.oke1943.azsaplayer.ui.theme.LocalTactical.current) {
+        // タクティカル：橙の帯＋等幅の大文字
+        Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(width = 4.dp, height = 14.dp).background(MaterialTheme.colorScheme.secondary))
+            Spacer(Modifier.width(8.dp))
+            Text(text.uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+        }
+        return
+    }
     Text(
         text,
         Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),

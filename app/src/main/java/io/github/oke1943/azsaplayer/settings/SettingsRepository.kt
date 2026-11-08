@@ -52,7 +52,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     companion object {
-        const val CURRENT_SCHEMA = 7
+        const val CURRENT_SCHEMA = 8
 
         /** 旧版（ver.1〜5）で保存された既定のタブ名。 */
         internal val LEGACY_DEFAULT_TITLES: Map<ViewKind, List<String>> = mapOf(
@@ -130,6 +130,21 @@ fun migrateSettings(old: AppSettings): AppSettings {
         s = s.copy(display = s.display.copy(homeViews = s.display.homeViews.map { v ->
             if (v.kind == ViewKind.ALBUM_FLOW && v.title in listOf("カバーフロー", "Cover Flow")) v.copy(title = "") else v
         }))
+    }
+    if (s.schema < 8) {
+        // ver.8：再生中画面の要素を「並び順つきのリスト」に。旧版のスイッチの状態を引き継ぐ
+        val np = s.display.nowPlaying
+        val items = listOfNotNull(
+            NpItem.ARTWORK.takeIf { np.showArtwork },
+            NpItem.TITLE.takeIf { np.showTitle },
+            NpItem.ARTIST.takeIf { np.showArtist },
+            NpItem.ALBUM.takeIf { np.showAlbum },
+            NpItem.FORMAT.takeIf { np.showFormat },
+            NpItem.REPLAYGAIN.takeIf { np.showReplayGain },
+            NpItem.SEEKBAR.takeIf { np.showSeekBar },
+            NpItem.CONTROLS.takeIf { np.showControls },
+        )
+        s = s.copy(display = s.display.copy(nowPlaying = np.copy(items = items)))
     }
     return if (s.schema == SettingsRepository.CURRENT_SCHEMA) s else s.copy(schema = SettingsRepository.CURRENT_SCHEMA)
 }

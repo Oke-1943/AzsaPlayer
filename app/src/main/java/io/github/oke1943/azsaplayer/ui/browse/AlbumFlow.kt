@@ -93,8 +93,13 @@ fun AlbumFlow(
     onOpenGroup: (GroupEntry) -> Unit,
     onOpenTrackInfo: (Long) -> Unit,
     bottomPadding: Dp,
+    /** タブを開いた回数。並びが「ランダム」のとき、開くたびに並びを変えるのに使う。 */
+    visit: Int = 0,
 ) {
-    val entries = rememberEntries(view, 0, emptyList(), settings)?.filterIsInstance<GroupEntry>()
+    val random = view.styleAt(0).sortBy == io.github.oke1943.azsaplayer.settings.SortBy.RANDOM
+    val seed = rememberSaveable(visit) { kotlin.random.Random.nextLong() }
+    val sorted = rememberEntries(view, 0, emptyList(), settings)?.filterIsInstance<GroupEntry>()
+    val entries = remember(sorted, random, seed) { if (random) sorted?.shuffled(kotlin.random.Random(seed)) else sorted }
     if (entries == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
@@ -108,10 +113,11 @@ fun AlbumFlow(
     val haptic = LocalHapticFeedback.current
     val n = entries.size
     val join = settings.display.joinSeparator
-    var saved by rememberSaveable { mutableIntStateOf(0) }
-    var pos by remember { mutableFloatStateOf(saved.coerceIn(0, n - 1).toFloat()) }
+    // ランダムで並びが変わったら先頭から
+    var saved by rememberSaveable(if (random) seed else 0L) { mutableIntStateOf(0) }
+    var pos by remember(if (random) seed else 0L) { mutableFloatStateOf(saved.coerceIn(0, n - 1).toFloat()) }
     /** 目標のアルバム（ホイールを回している間は表示位置より先に進む）。 */
-    var target by remember { mutableIntStateOf(saved.coerceIn(0, n - 1)) }
+    var target by remember(if (random) seed else 0L) { mutableIntStateOf(saved.coerceIn(0, n - 1)) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
     var menuFor by remember { mutableStateOf<GroupEntry?>(null) }
     val scope = rememberCoroutineScope()

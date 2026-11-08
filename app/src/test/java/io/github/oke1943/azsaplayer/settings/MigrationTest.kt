@@ -57,4 +57,19 @@ class MigrationTest {
         val json = SettingsRepository.json.encodeToString(AppSettings.serializer(), AppSettings())
         assertTrue(json.contains("\"COVER_FLOW\""))
     }
+
+    @Test
+    fun v7NowPlayingSwitchesBecomeAnOrderedList() {
+        val v7 = """{"schema":7,"display":{"nowPlaying":{"showArtwork":false,"showFormat":true,"showReplayGain":true}}}"""
+        val s = migrateSettings(SettingsRepository.decodeOrNull(v7)!!)
+        assertEquals(
+            listOf(NpItem.TITLE, NpItem.ARTIST, NpItem.ALBUM, NpItem.FORMAT, NpItem.REPLAYGAIN, NpItem.SEEKBAR, NpItem.CONTROLS),
+            s.display.nowPlaying.items,
+        )
+    }
+
+    @Test
+    fun freshInstallKeepsDefaultNowPlayingItems() {
+        assertEquals(NpItem.DEFAULT, migrateSettings(AppSettings()).display.nowPlaying.items)
+    }
 }

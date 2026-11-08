@@ -1,6 +1,7 @@
 package io.github.oke1943.azsaplayer.library
 
 import io.github.oke1943.azsaplayer.data.Role
+import io.github.oke1943.azsaplayer.settings.AlbumOrder
 import io.github.oke1943.azsaplayer.settings.ListStyle
 import io.github.oke1943.azsaplayer.settings.SortBy
 import io.github.oke1943.azsaplayer.settings.ViewConfig
@@ -44,6 +45,9 @@ data class BrowseLabels(
     val tracks: (Int) -> String = { "$it tracks" },
 )
 
+/** 人物を表す段の種類。 */
+val PERSON_KINDS = setOf(ViewKind.ALBUM_ARTIST, ViewKind.ARTIST, ViewKind.COMPOSER)
+
 /** 段の選択（例：アルバムアーティスト「米津玄師」を開いた）。 */
 data class Selection(val kind: ViewKind, val key: String, val title: String)
 
@@ -61,6 +65,12 @@ class BrowseEngine(
     private val customValues: (String) -> Map<Long, List<String>>,
     /** 表示言語に合わせた文言（画面側で用意する）。 */
     private val labels: BrowseLabels = BrowseLabels(),
+    /** アーティストのアルバム一覧の並び順（既定）。 */
+    private val albumOrder: AlbumOrder = AlbumOrder.YEAR_ASC,
+    /** アーティストごとのソート順。 */
+    private val artistAlbumOrder: Map<String, AlbumOrder> = emptyMap(),
+    /** 手動で並べ替えたアルバムの並び。 */
+    private val customAlbumOrder: Map<String, List<String>> = emptyMap(),
 ) {
 
     /** [path] の選択をすべて満たす曲（順序つき）。プレイリストを選んだ場合はその並び。 */
@@ -102,9 +112,38 @@ class BrowseEngine(
                 val entries = tracks.mapIndexed { i, t -> TrackEntry(t, i) }
                 if (inPlaylist && style.sortBy == SortBy.TRACK_NUMBER) entries else sortTracks(entries, style, kind)
             }
-            else -> sortGroups(groups(kind, tracks, view), style)
+            else -> {
+                val person = path.lastOrNull()?.takeIf { kind == ViewKind.ALBUM && it.kind in PERSON_KINDS }
+                if (person != null) sortArtistAlbums(groups(kind, tracks, view), personKey(person))
+                else sortGroups(groups(kind, tracks, view), style)
+            }
         }
     }
+
+    /** 人物を開いたときのアルバムの並び（アーティストごとの設定があればそれ、なければ全体の既定）。 */
+    fun sortArtistAlbums(albums: List<GroupEntry>, personKey: String): List<GroupEntry> {
+        val order = artistAlbumOrder[personKey] ?: albumOrder
+        if (order == AlbumOrder.MANUAL) {
+            val rank = customAlbumOrder[personKey].orEmpty().withIndex().associate { (i, k) -> k to i }
+            // 手動の並びにないアルバム（あとから増えたもの）は既定順で後ろに並べる
+            return sortByOrder(albums, albumOrder.takeIf { it != AlbumOrder.MANUAL } ?: AlbumOrder.YEAR_ASC)
+                .sortedBy { rank[it.key] ?: Int.MAX_VALUE }
+        }
+        return sortByOrder(albums, order)
+    }
+
+    private fun sortByOrder(albums: List<GroupEntry>, order: AlbumOrder): List<GroupEntry> =
+        when (order) {
+            AlbumOrder.YEAR_ASC -> sortGroups(albums, ListStyle(sortBy = SortBy.YEAR))
+            AlbumOrder.YEAR_DESC -> sortGroups(albums, ListStyle(sortBy = SortBy.YEAR, descending = true))
+            AlbumOrder.TITLE -> sortGroups(albums, ListStyle(sortBy = SortBy.SORT_KEY))
+            AlbumOrder.ADDED_NEWEST -> sortGroups(albums, ListStyle(sortBy = SortBy.DATE_ADDED, descending = true))
+            AlbumOrder.ADDED_OLDEST, AlbumOrder.MANUAL -> sortGroups(albums, ListStyle(sortBy = SortBy.DATE_ADDED))
+        }
+
+    /** カスタム順の保存に使う人物のキー（名前の比較キー。再スキャンしても変わらない）。 */
+    fun personKey(sel: Selection): String =
+        TagRules.identityKey(sel.key.toLongOrNull()?.let { lib.persons[it]?.name } ?: sel.title)
 
     private fun playlistGroups(): List<GroupEntry> = playlists.map { p ->
         GroupEntry(ViewKind.PLAYLIST, p.id.toString(), p.name, p.name, p.trackIds.mapNotNull { lib.tracksById[it] })
