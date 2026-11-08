@@ -282,10 +282,14 @@
     <string name="manual_h_templates">一覧の表示</string>
     <string name="manual_templates">1行目・2行目には次のフィールドを組み合わせて書けます：%1$s\n例：&lt;Artist&gt; — &lt;Year&gt;\n1行目を空にすると名前を、2行目を空にすると何も表示しません。</string>
     <string name="manual_h_playlists">プレイリスト</string>
-    <string name="manual_playlists">曲やアルバムを長押しして「プレイリストに追加」から作ります。MusicBee から書き出した M3U/M3U8 は 設定 &gt; ライブラリ から読み込み、Windows のパスは置き換え規則で端末上のパスに直します（例：D:\\Music\\ → /storage/XXXX-XXXX/Music/）。\n「よく聞く音楽」は再生の記録から自動で作られ、曲は自動で入れ替わります。曲の半分以上を聞くと「聞いた」、半分に届かず次へ進むと「スキップ」として数え、最近の記録ほど重く扱います。</string>
+    <string name="manual_playlists">曲やアルバムを長押しして「プレイリストに追加」から作ります。アルバムやアーティストの画面の右上のメニューからは、すべての曲をまとめて追加したり、チェックボックスで選んで追加したりできます。MusicBee から書き出した M3U/M3U8 は 設定 &gt; ライブラリ から読み込み、Windows のパスは置き換え規則で端末上のパスに直します（例：D:\\Music\\ → /storage/XXXX-XXXX/Music/）。\n「よく聞く音楽」は再生の記録から自動で作られ、曲は自動で入れ替わります。曲の半分以上を聞くと「聞いた」、半分に届かず次へ進むと「スキップ」として数え、最近の記録ほど重く扱います。</string>
     <string name="manual_h_search">検索</string>
     <string name="manual_search">ひらがな・カタカナ、全角・半角、大文字・小文字の違いは区別しません。空白で区切ると、すべてを含むものに絞り込みます。ソートタグの読みでも見つかります。</string>
     <string name="menu_more">その他の操作</string>
     <string name="menu_go_to_album">アルバムへ移動</string>
     <string name="menu_go_to_artist">%1$s のアルバム一覧</string>
+    <string name="selected_count">%1$d件を選択</string>
+    <string name="select_all">すべて選択</string>
+    <string name="add_all_to_playlist">すべてプレイリストに追加…</string>
+    <string name="select_to_add">選んでプレイリストに追加…</string>
 </resources>

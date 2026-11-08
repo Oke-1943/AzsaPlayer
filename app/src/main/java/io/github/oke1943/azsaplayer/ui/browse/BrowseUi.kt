@@ -109,6 +109,9 @@ fun BrowseList(
     header: (@Composable () -> Unit)? = null,
     /** 曲の左にトラック番号を出す（アルバム画面）。 */
     showTrackNumbers: Boolean = false,
+    /** 選択モード（チェックボックスで選んでプレイリストに追加）。null なら通常の一覧。 */
+    selected: Set<String>? = null,
+    onToggleSelect: (BrowseEntry) -> Unit = {},
 ) {
     val context = LocalContext.current
     val c = context.container
@@ -131,7 +134,7 @@ fun BrowseList(
 
     val trackIds = remember(entries) { entries.filterIsInstance<TrackEntry>().map { it.track.id } }
     val onClick: (BrowseEntry) -> Unit = { e ->
-        when (e) {
+        if (selected != null) onToggleSelect(e) else when (e) {
             is GroupEntry -> onOpenGroup(e)
             is TrackEntry -> {
                 if (!e.track.e.playable) {
@@ -173,7 +176,16 @@ fun BrowseList(
                         item(key = "header", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { header() }
                     }
                     itemsIndexed(entries, key = { _, e -> e.key }) { _, e ->
-                        GridCell(e, style, join, currentId, onClick = { onClick(e) }, onLongClick = { menuFor = e })
+                        Box {
+                            GridCell(e, style, join, currentId, onClick = { onClick(e) }, onLongClick = { if (selected != null) onToggleSelect(e) else menuFor = e })
+                            if (selected != null) {
+                                androidx.compose.material3.Checkbox(
+                                    checked = e.key in selected, onCheckedChange = { onToggleSelect(e) },
+                                    modifier = Modifier.align(Alignment.TopStart)
+                                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape),
+                                )
+                            }
+                        }
                     }
                 }
                 if (indexLetters != null) {
@@ -186,7 +198,16 @@ fun BrowseList(
                     if (header != null) item(key = "header") { header() }
                     itemsIndexed(entries, key = { _, e -> e.key }) { _, e ->
                         val number = if (showTrackNumbers && e is TrackEntry) e.track.e.trackNo else null
-                        ListRow(e, style, join, currentId, number, showTrackNumbers, onClick = { onClick(e) }, onLongClick = { menuFor = e })
+                        if (selected != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.Checkbox(checked = e.key in selected, onCheckedChange = { onToggleSelect(e) }, modifier = Modifier.padding(start = 4.dp))
+                                Box(Modifier.weight(1f)) {
+                                    ListRow(e, style, join, currentId, number, showTrackNumbers, onClick = { onClick(e) }, onLongClick = { onToggleSelect(e) })
+                                }
+                            }
+                        } else {
+                            ListRow(e, style, join, currentId, number, showTrackNumbers, onClick = { onClick(e) }, onLongClick = { menuFor = e })
+                        }
                     }
                 }
                 if (indexLetters != null) {

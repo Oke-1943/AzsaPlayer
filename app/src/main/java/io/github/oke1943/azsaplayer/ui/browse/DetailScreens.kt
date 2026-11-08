@@ -68,7 +68,7 @@ fun TrackInfoScreen(trackId: Long, join: String, onBack: () -> Unit) {
                     ArtworkImage(t.album.artTrack.e, 96.dp)
                     Column(Modifier.padding(start = 16.dp)) {
                         Text(t.title, style = MaterialTheme.typography.titleMedium)
-                        Text(t.artists.joinToString(join) { it.name }, color = MaterialTheme.colorScheme.primary)
+                        Text(t.artists.joinToString(join) { it.name }, color = MaterialTheme.colorScheme.onSurface)
                         Text(t.e.album, style = MaterialTheme.typography.bodySmall)
                     }
                 }

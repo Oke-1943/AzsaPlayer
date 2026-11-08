@@ -283,10 +283,14 @@
     <string name="manual_h_templates">List text</string>
     <string name="manual_templates">Lines 1 and 2 can combine these fields: %1$s\nExample: &lt;Artist&gt; — &lt;Year&gt;\nAn empty line 1 shows the name; an empty line 2 shows nothing.</string>
     <string name="manual_h_playlists">Playlists</string>
-    <string name="manual_playlists">Long-press a track or album and choose Add to playlist. Import M3U/M3U8 files exported from MusicBee in Settings &gt; Library, and add path rules to convert Windows paths (e.g. D:\\Music\\ → /storage/XXXX-XXXX/Music/).\nFrequently played is built automatically from your listening and updates by itself. Listening to at least half of a track counts as a play; moving on earlier counts as a skip. Recent listening counts more.</string>
+    <string name="manual_playlists">Long-press a track or album and choose Add to playlist. From the menu at the top right of an album or artist screen, you can add all tracks at once, or pick them with checkboxes. Import M3U/M3U8 files exported from MusicBee in Settings &gt; Library, and add path rules to convert Windows paths (e.g. D:\\Music\\ → /storage/XXXX-XXXX/Music/).\nFrequently played is built automatically from your listening and updates by itself. Listening to at least half of a track counts as a play; moving on earlier counts as a skip. Recent listening counts more.</string>
     <string name="manual_h_search">Search</string>
     <string name="manual_search">Hiragana/katakana, full-width/half-width and upper/lower case are treated alike. Separate words with spaces to find items that contain all of them. Sort tags are searched too.</string>
     <string name="menu_more">More options</string>
     <string name="menu_go_to_album">Go to album</string>
     <string name="menu_go_to_artist">Albums by %1$s</string>
+    <string name="selected_count">%1$d selected</string>
+    <string name="select_all">Select all</string>
+    <string name="add_all_to_playlist">Add all to playlist…</string>
+    <string name="select_to_add">Select and add to playlist…</string>
 </resources>

@@ -208,7 +208,7 @@ fun AlbumFlow(
             )
             Text(
                 current.album?.albumArtists?.joinToString(join) { it.name } ?: "",
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1,
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
             )
             Text(

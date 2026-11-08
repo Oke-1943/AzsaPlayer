@@ -16,6 +16,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SwapVert
@@ -184,6 +187,9 @@ fun BrowseScreen(
     if (view == null) { onBack(); return }
     val scope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
+    // プレイリストへの追加：一括（addIds）と、チェックボックスで選ぶ選択モード（selection）
+    var addIds by remember { mutableStateOf<List<Long>?>(null) }
+    var selection by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<List<String>?>(null) }
     val playlists by c.playlists.playlists.collectAsStateWithLifecycle(initialValue = emptyList<PlaylistInfo>())
 
     val personAlbums = view.levels.getOrNull(level) == ViewKind.ALBUM && path.lastOrNull()?.kind in io.github.oke1943.azsaplayer.library.PERSON_KINDS
@@ -206,8 +212,30 @@ fun BrowseScreen(
             .map { it.id }
     }
 
+    val entries = rememberEntries(view, level, path, settings)
+    androidx.activity.compose.BackHandler(enabled = selection != null) { selection = null }
+    addIds?.let { ids -> AddToPlaylistDialog(ids, onDone = { addIds = null; selection = null }) }
+
     Scaffold(
         topBar = {
+            val sel = selection
+            if (sel != null) {
+                val all = entries.orEmpty()
+                TopAppBar(
+                    title = { Text(stringResource(R.string.selected_count, sel.size)) },
+                    navigationIcon = { IconButton(onClick = { selection = null }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cancel)) } },
+                    actions = {
+                        IconButton(onClick = { selection = if (sel.size == all.size) emptyList() else all.map { it.key } }) {
+                            Icon(Icons.Filled.SelectAll, contentDescription = stringResource(R.string.select_all))
+                        }
+                        IconButton(enabled = sel.isNotEmpty(), onClick = {
+                            val keys = sel.toSet()
+                            addIds = all.filter { it.key in keys }.flatMap { entryTrackIds(it) }.distinct()
+                        }) { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.menu_add_to_playlist)) }
+                    },
+                )
+                return@Scaffold
+            }
             TopAppBar(
                 title = { Text(path.lastOrNull()?.title ?: view.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) } },
@@ -218,6 +246,8 @@ fun BrowseScreen(
                         DropdownMenuItem(text = { Text(stringResource(R.string.menu_shuffle)) }, onClick = { menu = false; scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.TRACKS) } })
                         DropdownMenuItem(text = { Text(stringResource(R.string.shuffle_by_album)) }, onClick = { menu = false; scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.ALBUMS) } })
                         DropdownMenuItem(text = { Text(stringResource(R.string.menu_add_to_queue)) }, onClick = { menu = false; scope.launch { c.player.addToQueue(pathTracks()) } })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.add_all_to_playlist)) }, onClick = { menu = false; scope.launch { addIds = pathTracks() } })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.select_to_add)) }, onClick = { menu = false; selection = emptyList() })
                         val playlistId = path.lastOrNull()?.takeIf { it.kind == ViewKind.PLAYLIST }?.key?.toLongOrNull()
                         if (playlistId != null && playlistId != io.github.oke1943.azsaplayer.playlist.SMART_ID) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.reorder_edit)) }, onClick = { menu = false; onEditPlaylist(playlistId) })
@@ -266,6 +296,8 @@ fun BrowseScreen(
                     else -> null
                 },
                 showTrackNumbers = album != null && trackLevel && view.styleAt(level).sortBy == io.github.oke1943.azsaplayer.settings.SortBy.TRACK_NUMBER,
+                selected = selection?.toSet(),
+                onToggleSelect = { e -> selection = selection?.let { if (e.key in it) it - e.key else it + e.key } },
             )
         }
     }
@@ -304,7 +336,8 @@ private fun ArtistHeader(name: String, albums: Int, tracks: Int, onPlay: () -> U
                 Icon(androidx.compose.material.icons.Icons.Filled.SwapVert, contentDescription = stringResource(R.string.album_order))
             }
         }
-        androidx.compose.material3.HorizontalDivider()
+        androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 4.dp))
+        androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 12.dp))
     }
 }
 
@@ -325,7 +358,7 @@ private fun AlbumHeader(album: io.github.oke1943.azsaplayer.library.LibAlbum, jo
                 )
                 Text(
                     album.albumArtists.joinToString(join) { it.name }, style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 4.dp),
                 )
                 if (meta.isNotEmpty()) {
@@ -343,4 +376,11 @@ private fun AlbumHeader(album: io.github.oke1943.azsaplayer.library.LibAlbum, jo
         }
         androidx.compose.material3.HorizontalDivider()
     }
+}
+
+/** 一覧の項目に含まれる再生できる曲（アルバムなどはディスク・トラック番号順）。 */
+private fun entryTrackIds(e: io.github.oke1943.azsaplayer.library.BrowseEntry): List<Long> = when (e) {
+    is GroupEntry -> if (e.kind == ViewKind.PLAYLIST) e.tracks.filter { it.e.playable }.map { it.id }
+        else e.tracks.filter { it.e.playable }.sortedWith(compareBy({ it.album.titleSort ?: it.album.title }, { it.e.discNo ?: 1 }, { it.e.trackNo ?: Int.MAX_VALUE })).map { it.id }
+    is io.github.oke1943.azsaplayer.library.TrackEntry -> if (e.track.e.playable) listOf(e.track.id) else emptyList()
 }
