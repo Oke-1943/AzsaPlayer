@@ -257,7 +257,6 @@
     <string name="album_order_keep_custom">アーティストごとの設定はそのまま</string>
     <string name="album_order_reset_custom">すべてこの並び順にそろえる（%1$d人の設定を消去）</string>
     <string name="album_order_follow_default">既定（%1$s）</string>
-    <string name="albums_and_tracks">%1$d枚 · %2$d曲</string>
     <string name="add_item">＋ 項目を追加</string>
     <string name="np_marquee">長い値を自動で横スクロール</string>
     <string name="sort_random">ランダム</string>
@@ -272,7 +271,7 @@
     <string name="manual_h_album_flow">Album Flow</string>
     <string name="manual_album_flow">ジャケットを左右になぞるか、下のホイールを回してアルバムを選びます。中央のジャケット（またはホイールの中央）でアルバムを開き、MENU でメニューを出します。並び順を「ランダム」にすると、タブを開くたびに並びが変わります。</string>
     <string name="manual_h_album_order">アルバムの並び順</string>
-    <string name="manual_album_order">アーティストのアルバム一覧の並び順は 設定 &gt; ホーム で全アーティスト共通に決めます。アーティストのアルバム一覧の右上のボタンから、そのアーティストだけの並び順（手動の並べ替えも可）を選べます。共通の並び順を変えるときは、アーティストごとの設定を残すか、すべてそろえるかを選べます。</string>
+    <string name="manual_album_order">アーティストのアルバム一覧の並び順は 設定 &gt; ホーム で全アーティスト共通に決めます。アーティストのアルバム一覧の右上のメニューの「アルバムの並び順」から、そのアーティストだけの並び順（手動の並べ替えも可）を選べます。共通の並び順を変えるときは、アーティストごとの設定を残すか、すべてそろえるかを選べます。</string>
     <string name="manual_h_rg">リプレイゲイン</string>
     <string name="manual_rg">トラックゲイン：曲ごとの値（なければアルバムの値）。\nアルバムゲイン：アルバムの値（なければ曲の値）。\n自動：アルバムを通して聴くときはアルバム、シャッフルや混在した並びではトラック。\n補正はアプリ内のデジタル処理で行い、端末の音量機構は使いません。クリッピング防止は、ピーク値を使って倍率を 1/ピーク までに制限します。設定の変更は再生中の曲にもすぐ反映されます。</string>
     <string name="manual_h_library">ライブラリ</string>

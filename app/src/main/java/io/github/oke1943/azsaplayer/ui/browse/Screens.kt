@@ -193,6 +193,8 @@ fun BrowseScreen(
     val playlists by c.playlists.playlists.collectAsStateWithLifecycle(initialValue = emptyList<PlaylistInfo>())
 
     val personAlbums = view.levels.getOrNull(level) == ViewKind.ALBUM && path.lastOrNull()?.kind in io.github.oke1943.azsaplayer.library.PERSON_KINDS
+    // 1枚のアルバムの曲一覧（アルバム単位のシャッフルは意味がない）
+    val singleAlbum = path.lastOrNull()?.kind == ViewKind.ALBUM && view.levels.getOrNull(level) == ViewKind.TRACK
 
     suspend fun pathTracks(): List<Long> = withContext(Dispatchers.Default) {
         val engine = BrowseEngine(
@@ -244,10 +246,15 @@ fun BrowseScreen(
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.play_all)) }, onClick = { menu = false; scope.launch { c.player.play(pathTracks()) } })
                         DropdownMenuItem(text = { Text(stringResource(R.string.menu_shuffle)) }, onClick = { menu = false; scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.TRACKS) } })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.shuffle_by_album)) }, onClick = { menu = false; scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.ALBUMS) } })
+                        if (!singleAlbum) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.shuffle_by_album)) }, onClick = { menu = false; scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.ALBUMS) } })
+                        }
                         DropdownMenuItem(text = { Text(stringResource(R.string.menu_add_to_queue)) }, onClick = { menu = false; scope.launch { c.player.addToQueue(pathTracks()) } })
                         DropdownMenuItem(text = { Text(stringResource(R.string.add_all_to_playlist)) }, onClick = { menu = false; scope.launch { addIds = pathTracks() } })
                         DropdownMenuItem(text = { Text(stringResource(R.string.select_to_add)) }, onClick = { menu = false; selection = emptyList() })
+                        if (personAlbums) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.album_order)) }, onClick = { menu = false; onEditAlbumOrder() })
+                        }
                         val playlistId = path.lastOrNull()?.takeIf { it.kind == ViewKind.PLAYLIST }?.key?.toLongOrNull()
                         if (playlistId != null && playlistId != io.github.oke1943.azsaplayer.playlist.SMART_ID) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.reorder_edit)) }, onClick = { menu = false; onEditPlaylist(playlistId) })
@@ -277,22 +284,6 @@ fun BrowseScreen(
                             )
                         }
                     }
-                    personAlbums -> {
-                        {
-                            val sel = path.last()
-                            val personTracks = remember(snapshot, sel) {
-                                BrowseEngine(snapshot, SortRules(false), playlists, c.library::customValues).tracksFor(view, path)
-                            }
-                            ArtistHeader(
-                                name = sel.title,
-                                albums = personTracks.map { it.album.key }.distinct().size,
-                                tracks = personTracks.size,
-                                onPlay = { scope.launch { c.player.play(pathTracks()) } },
-                                onShuffle = { scope.launch { c.player.play(pathTracks(), 0, ShuffleMode.TRACKS) } },
-                                onEditOrder = onEditAlbumOrder,
-                            )
-                        }
-                    }
                     else -> null
                 },
                 showTrackNumbers = album != null && trackLevel && view.styleAt(level).sortBy == io.github.oke1943.azsaplayer.settings.SortBy.TRACK_NUMBER,
@@ -312,34 +303,6 @@ fun SmallLabel(text: String) {
 @Composable
 private fun navBarBottom() =
     androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-
-/** アーティストのアルバム一覧の見出し：全曲の再生・シャッフルと、アルバムの並び順の編集。 */
-@Composable
-private fun ArtistHeader(name: String, albums: Int, tracks: Int, onPlay: () -> Unit, onShuffle: () -> Unit, onEditOrder: () -> Unit) {
-    Column {
-        Text(
-            name, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
-        )
-        Text(
-            stringResource(R.string.albums_and_tracks, albums, tracks), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.material3.TextButton(onClick = onPlay) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                Text(stringResource(R.string.play), Modifier.padding(start = 4.dp))
-            }
-            IconButton(onClick = onShuffle) { Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.menu_shuffle)) }
-            Box(Modifier.weight(1f))
-            IconButton(onClick = onEditOrder) {
-                Icon(androidx.compose.material.icons.Icons.Filled.SwapVert, contentDescription = stringResource(R.string.album_order))
-            }
-        }
-        androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 4.dp))
-        androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 12.dp))
-    }
-}
 
 /** アルバム画面の見出し：ジャケットと基本情報、再生ボタン。 */
 @Composable

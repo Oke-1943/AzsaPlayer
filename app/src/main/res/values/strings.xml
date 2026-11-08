@@ -258,7 +258,6 @@
     <string name="album_order_keep_custom">Keep per-artist settings</string>
     <string name="album_order_reset_custom">Apply to all artists (clears %1$d per-artist settings)</string>
     <string name="album_order_follow_default">Default (%1$s)</string>
-    <string name="albums_and_tracks">%1$d albums · %2$d tracks</string>
     <string name="add_item">+ Add item</string>
     <string name="np_marquee">Scroll long text automatically</string>
     <string name="sort_random">Random</string>
@@ -273,7 +272,7 @@
     <string name="manual_h_album_flow">Album Flow</string>
     <string name="manual_album_flow">Swipe the covers or turn the wheel below to choose an album. Tap the center cover (or the center of the wheel) to open it, and MENU for more actions. With the order set to Random, the albums are shuffled each time you open the tab.</string>
     <string name="manual_h_album_order">Album order</string>
-    <string name="manual_album_order">Settings &gt; Home sets the album order for all artists. The button at the top right of an artist\'s album list sets an order for that artist only, including a manual order. When you change the common order, you can keep or clear the per-artist settings.</string>
+    <string name="manual_album_order">Settings &gt; Home sets the album order for all artists. Album order in the menu at the top right of an artist\'s album list sets an order for that artist only, including a manual order. When you change the common order, you can keep or clear the per-artist settings.</string>
     <string name="manual_h_rg">ReplayGain</string>
     <string name="manual_rg">Track gain: the track value (or the album value if missing).\nAlbum gain: the album value (or the track value if missing).\nAuto: album gain when listening through an album, track gain when shuffling or mixing.\nThe gain is applied digitally inside the app; the system volume is not used. Clipping prevention limits the gain to 1/peak. Changes take effect immediately, even for the track that is playing.</string>
     <string name="manual_h_library">Library</string>
