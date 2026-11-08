@@ -291,4 +291,5 @@
     <string name="select_all">すべて選択</string>
     <string name="add_all_to_playlist">すべてプレイリストに追加…</string>
     <string name="select_to_add">選んでプレイリストに追加…</string>
+    <string name="set_mini_player_height">ミニプレーヤーの高さ</string>
 </resources>

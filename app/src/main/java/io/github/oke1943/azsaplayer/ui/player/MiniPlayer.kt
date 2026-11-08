@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -41,6 +43,11 @@ fun MiniPlayer(onOpen: () -> Unit) {
     val snapshot by c.library.snapshot.collectAsStateWithLifecycle()
     val item = state.current ?: return
     val track = item.mediaId.toLongOrNull()?.let { snapshot.tracksById[it] }
+    val settings by c.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+    // 高さは設定で変えられる：ジャケットとボタンも高さに合わせる
+    val height = (settings?.display?.miniPlayerHeight ?: 60).coerceIn(52, 96)
+    val button = (height * 0.75f).coerceIn(40f, 60f).dp
+    val icon = (height * 0.42f).coerceIn(24f, 36f).dp
 
     Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.navigationBarsPadding()) {
@@ -51,10 +58,10 @@ fun MiniPlayer(onOpen: () -> Unit) {
                 gapSize = 0.dp,
             )
             Row(
-                Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 12.dp, vertical = 8.dp),
+                Modifier.fillMaxWidth().height(height.dp).clickable(onClick = onOpen).padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ArtworkImage(track?.album?.artTrack?.e, 44.dp)
+                ArtworkImage(track?.album?.artTrack?.e, (height - 16).dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(item.mediaMetadata.title?.toString() ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
@@ -63,10 +70,18 @@ fun MiniPlayer(onOpen: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = { c.player.togglePlay() }) {
-                    Icon(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = stringResource(if (state.isPlaying) R.string.pause else R.string.play))
+                IconButton(onClick = { c.player.previous() }, modifier = Modifier.size(button)) {
+                    Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.previous_track), Modifier.size(icon))
                 }
-                IconButton(onClick = { c.player.next() }) { Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.next_track)) }
+                IconButton(onClick = { c.player.togglePlay() }, modifier = Modifier.size(button)) {
+                    Icon(
+                        if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = stringResource(if (state.isPlaying) R.string.pause else R.string.play), Modifier.size(icon),
+                    )
+                }
+                IconButton(onClick = { c.player.next() }, modifier = Modifier.size(button)) {
+                    Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.next_track), Modifier.size(icon))
+                }
             }
         }
     }

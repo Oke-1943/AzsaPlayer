@@ -146,14 +146,15 @@ fun AlbumFlow(
 
     BoxWithConstraints(Modifier.fillMaxSize().padding(bottom = bottomPadding)) {
         val wheel = min(maxWidth.value * 0.62f, maxHeight.value * 0.36f).dp
-        // ジャケットは「映り込み込み1.3倍＋情報3行＋ホイール」が収まる大きさ
-        val cover = min(maxWidth.value * 0.48f, (maxHeight.value - wheel.value - 96f) / 1.3f).coerceAtLeast(80f).dp
+        // ジャケットは「上の余白＋映り込み込み1.3倍＋情報2行＋ホイール」が収まる大きさ
+        val cover = min(maxWidth.value * 0.48f, (maxHeight.value - wheel.value - TOP_GAP - 76f) / 1.3f).coerceAtLeast(80f).dp
         val centerGap = cover * 0.62f
         val sideStep = cover * 0.2f
         val density = LocalDensity.current
         val stepPx = with(density) { sideStep.toPx() }
 
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(Modifier.height(TOP_GAP.dp))
             Spacer(Modifier.weight(1f))
             Box(
                 Modifier
@@ -210,10 +211,6 @@ fun AlbumFlow(
                 current.album?.albumArtists?.joinToString(join) { it.name } ?: "",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
-            )
-            Text(
-                listOfNotNull(current.year?.toString(), "${target + 1} / $n").joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
             ScrollWheel(
@@ -371,3 +368,6 @@ private fun zoneOf(angle: Float): String = when {
     angle >= 45f && angle < 135f -> "bottom"
     else -> "left"
 }
+
+/** ジャケットの上の余白（dp）。 */
+private const val TOP_GAP = 28f

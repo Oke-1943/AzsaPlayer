@@ -134,6 +134,9 @@ fun AppearanceSettingsScreen(settings: AppSettings, onBack: () -> Unit) {
             SliderRow(stringResource(R.string.set_font_size), d.fontScale, 0.8f..1.4f, 0.05f, { "%.0f%%".format(it * 100) }) { v ->
                 update { it.copy(display = it.display.copy(fontScale = v)) }
             }
+            SliderRow(stringResource(R.string.set_mini_player_height), d.miniPlayerHeight.toFloat(), 52f..96f, 4f, { "%.0f dp".format(it) }) { v ->
+                update { it.copy(display = it.display.copy(miniPlayerHeight = v.toInt())) }
+            }
         }
     }
 }

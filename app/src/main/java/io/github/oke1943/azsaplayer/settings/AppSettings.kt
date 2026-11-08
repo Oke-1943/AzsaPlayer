@@ -37,6 +37,8 @@ data class DisplaySettings(
     val startTab: StartTab = StartTab.FIRST,
     /** ホーム右上に検索ボタンを置く（ver.5）。 */
     val showSearchButton: Boolean = true,
+    /** 画面下のミニプレーヤーの高さ（dp）。 */
+    val miniPlayerHeight: Int = 60,
     val nowPlaying: NowPlayingSettings = NowPlayingSettings(),
     /** アーティストのアルバム一覧のソート順（全アーティスト共通の既定）。 */
     val albumOrder: AlbumOrder = AlbumOrder.YEAR_ASC,
