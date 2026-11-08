@@ -45,6 +45,10 @@ fun EntryMenu(
     inPlaylist: Long?,
     onDismiss: () -> Unit,
     onOpenTrackInfo: (Long) -> Unit,
+    /** 再生画面から開くとき：再生・キュー操作は出さず、アルバム・アーティストへの移動を出す。 */
+    nowPlaying: Boolean = false,
+    onOpenAlbum: (() -> Unit)? = null,
+    onOpenArtist: List<Pair<String, () -> Unit>> = emptyList(),
 ) {
     val context = LocalContext.current
     val c = context.container
@@ -70,13 +74,17 @@ fun EntryMenu(
                     entry.title, Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
-                MenuItem(stringResource(R.string.menu_play)) { c.player.play(ids); done() }
-                if (entry is GroupEntry) {
-                    MenuItem(stringResource(R.string.menu_shuffle)) { c.player.play(ids, 0, ShuffleMode.TRACKS); done() }
+                if (!nowPlaying) {
+                    MenuItem(stringResource(R.string.menu_play)) { c.player.play(ids); done() }
+                    if (entry is GroupEntry) {
+                        MenuItem(stringResource(R.string.menu_shuffle)) { c.player.play(ids, 0, ShuffleMode.TRACKS); done() }
+                    }
+                    MenuItem(stringResource(R.string.menu_play_next)) { c.player.playNext(ids); toast(context, context.getString(R.string.toast_play_next)); done() }
+                    MenuItem(stringResource(R.string.menu_add_to_queue)) { c.player.addToQueue(ids); toast(context, context.getString(R.string.toast_added_to_queue)); done() }
                 }
-                MenuItem(stringResource(R.string.menu_play_next)) { c.player.playNext(ids); toast(context, context.getString(R.string.toast_play_next)); done() }
-                MenuItem(stringResource(R.string.menu_add_to_queue)) { c.player.addToQueue(ids); toast(context, context.getString(R.string.toast_added_to_queue)); done() }
                 MenuItem(stringResource(R.string.menu_add_to_playlist)) { addToPlaylist = true }
+                onOpenAlbum?.let { open -> MenuItem(stringResource(R.string.menu_go_to_album)) { done(); open() } }
+                onOpenArtist.forEach { (name, open) -> MenuItem(stringResource(R.string.menu_go_to_artist, name)) { done(); open() } }
                 if (entry is TrackEntry) {
                     if (inPlaylist != null && inPlaylist != io.github.oke1943.azsaplayer.playlist.SMART_ID) {
                         MenuItem(stringResource(R.string.menu_remove_from_playlist)) {

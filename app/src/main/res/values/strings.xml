@@ -269,7 +269,7 @@
     <string name="manual_h_home">Home</string>
     <string name="manual_home">Add, reorder and remove tabs in Settings &gt; Home. Tap a tab to change its list style (list/grid, artwork, lines 1 and 2, sort order) and the levels down to the tracks. With a single tab, the tab row is hidden.</string>
     <string name="manual_h_now_playing">Now playing</string>
-    <string name="manual_now_playing">Choose the items and their order in Settings &gt; Now playing. Tap the artwork to open the album, or the artist to open the album artist\'s albums. Swipe down to go back to the track list of the album that is playing. Format shows the codec, bit depth and sample rate; ReplayGain shows the gain being applied.</string>
+    <string name="manual_now_playing">Choose the items and their order in Settings &gt; Now playing. Tap the artwork to open the album, or the artist to open the album artist\'s albums. Swipe down to go back to the track list of the album that is playing. Format shows the codec, bit depth and sample rate; ReplayGain shows the gain being applied. The shuffle button cycles through off → by track → by album (with a disc mark) → off. The ⋮ menu at the top right adds the track to a playlist, goes to its album or artist, or shows track info.</string>
     <string name="manual_h_album_flow">Album Flow</string>
     <string name="manual_album_flow">Swipe the covers or turn the wheel below to choose an album. Tap the center cover (or the center of the wheel) to open it, and MENU for more actions. With the order set to Random, the albums are shuffled each time you open the tab.</string>
     <string name="manual_h_album_order">Album order</string>
@@ -286,4 +286,7 @@
     <string name="manual_playlists">Long-press a track or album and choose Add to playlist. Import M3U/M3U8 files exported from MusicBee in Settings &gt; Library, and add path rules to convert Windows paths (e.g. D:\\Music\\ → /storage/XXXX-XXXX/Music/).\nFrequently played is built automatically from your listening and updates by itself. Listening to at least half of a track counts as a play; moving on earlier counts as a skip. Recent listening counts more.</string>
     <string name="manual_h_search">Search</string>
     <string name="manual_search">Hiragana/katakana, full-width/half-width and upper/lower case are treated alike. Separate words with spaces to find items that contain all of them. Sort tags are searched too.</string>
+    <string name="menu_more">More options</string>
+    <string name="menu_go_to_album">Go to album</string>
+    <string name="menu_go_to_artist">Albums by %1$s</string>
 </resources>

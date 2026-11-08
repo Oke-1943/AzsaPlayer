@@ -16,10 +16,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -82,6 +86,7 @@ fun NowPlayingScreen(
     onOpenAlbumArtist: (LibPerson) -> Unit,
     /** 下へのスワイプ：アルバムの曲リストへ戻る（アルバムキー, アルバム名）。 */
     onSwipeDown: (String?, String) -> Unit,
+    onOpenTrackInfo: (Long) -> Unit,
 ) {
     val c = LocalContext.current.container
     val state by c.player.state.collectAsStateWithLifecycle()
@@ -92,13 +97,32 @@ fun NowPlayingScreen(
     val scope = rememberCoroutineScope()
     val drag = remember { Animatable(0f) }
     val threshold = with(LocalDensity.current) { 120.dp.toPx() }
+    var menu by remember { mutableStateOf(false) }
+
+    if (menu && track != null && item != null) {
+        val albumKey = MediaItems.albumKey(item)
+        val albumTitle = item.mediaMetadata.albumTitle?.toString() ?: ""
+        io.github.oke1943.azsaplayer.ui.browse.EntryMenu(
+            entry = io.github.oke1943.azsaplayer.library.TrackEntry(track, 0),
+            allTrackIds = listOf(track.id),
+            inPlaylist = null,
+            onDismiss = { menu = false },
+            onOpenTrackInfo = onOpenTrackInfo,
+            nowPlaying = true,
+            onOpenAlbum = albumKey?.let { k -> { onOpenAlbum(k, albumTitle) } },
+            onOpenArtist = track.effectiveAlbumArtists.map { p -> p.name to { onOpenAlbumArtist(p) } },
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {},
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.close)) } },
-                actions = { IconButton(onClick = onOpenQueue) { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = stringResource(R.string.queue)) } },
+                actions = {
+                    IconButton(onClick = onOpenQueue) { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = stringResource(R.string.queue)) }
+                    IconButton(onClick = { menu = true }, enabled = track != null) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.menu_more)) }
+                },
             )
         },
     ) { padding ->
@@ -244,11 +268,19 @@ private fun Controls(
 ) {
     Spacer(Modifier.height(8.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        // タップごとに オフ → 曲単位 → アルバム単位 → オフ。アルバム単位は円盤の印を付けて区別する
         IconButton(onClick = onShuffle) {
-            Icon(
-                Icons.Filled.Shuffle, contentDescription = stringResource(shuffle.labelRes),
-                tint = if (shuffle == ShuffleMode.OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-            )
+            val tint = if (shuffle == ShuffleMode.OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+            Box {
+                Icon(Icons.Filled.Shuffle, contentDescription = stringResource(shuffle.labelRes), tint = tint)
+                if (shuffle == ShuffleMode.ALBUMS) {
+                    Icon(
+                        Icons.Filled.Album, contentDescription = null, tint = tint,
+                        modifier = Modifier.size(11.dp).align(Alignment.BottomEnd).offset(x = 3.dp, y = 3.dp)
+                            .background(MaterialTheme.colorScheme.background, CircleShape),
+                    )
+                }
+            }
         }
         IconButton(onClick = onPrevious) { Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.previous_track), Modifier.size(32.dp)) }
         FilledIconButton(onClick = onPlayPause, modifier = Modifier.size(64.dp)) {

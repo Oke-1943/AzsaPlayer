@@ -220,6 +220,7 @@ private fun AppNavHost(settings: AppSettings) {
                         nav.navigate(Routes.browse(Routes.ALBUM_VIEW_ID, 1, listOf(Selection(io.github.oke1943.azsaplayer.settings.ViewKind.ALBUM, key, title))))
                     }
                 },
+                onOpenTrackInfo = { nav.navigate(Routes.track(it)) },
             )
         }
         composable(Routes.QUEUE) { QueueScreen(onBack = { nav.popBackStack() }) }
