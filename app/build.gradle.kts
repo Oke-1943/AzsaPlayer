@@ -15,8 +15,8 @@ android {
         // 対象はHiBy R4（Android 12）のみ
         minSdk = 31
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.6.6"
+        versionCode = 14
+        versionName = "0.6.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

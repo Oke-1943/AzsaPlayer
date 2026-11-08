@@ -209,17 +209,6 @@ private fun AppNavHost(settings: AppSettings) {
                 onOpenAlbumArtist = { p ->
                     nav.navigate(Routes.browse(Routes.ALBUM_ARTIST_VIEW_ID, 1, listOf(Selection(io.github.oke1943.azsaplayer.settings.ViewKind.ALBUM_ARTIST, p.id.toString(), p.name))))
                 },
-                onSwipeDown = { key, title ->
-                    // 直前の画面がそのアルバムの曲リストならそこへ戻る。違えば閉じてアルバムの曲リストを開く
-                    val prev = nav.previousBackStackEntry
-                    val prevAlbum = prev?.takeIf { it.destination.route == "browse/{viewId}/{level}/{path}" }
-                        ?.let { Routes.decodePath(it.arguments?.getString("path") ?: "").lastOrNull() }
-                    val backToAlbum = prevAlbum?.kind == io.github.oke1943.azsaplayer.settings.ViewKind.ALBUM && prevAlbum.key == key
-                    nav.popBackStack()
-                    if (!backToAlbum && key != null) {
-                        nav.navigate(Routes.browse(Routes.ALBUM_VIEW_ID, 1, listOf(Selection(io.github.oke1943.azsaplayer.settings.ViewKind.ALBUM, key, title))))
-                    }
-                },
                 onOpenTrackInfo = { nav.navigate(Routes.track(it)) },
             )
         }

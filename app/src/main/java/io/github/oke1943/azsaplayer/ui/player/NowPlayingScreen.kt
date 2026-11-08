@@ -84,8 +84,6 @@ fun NowPlayingScreen(
     onOpenAlbum: (String, String) -> Unit,
     /** アーティスト名のタップ：その曲のアルバムアーティストのアルバム一覧へ。 */
     onOpenAlbumArtist: (LibPerson) -> Unit,
-    /** 下へのスワイプ：アルバムの曲リストへ戻る（アルバムキー, アルバム名）。 */
-    onSwipeDown: (String?, String) -> Unit,
     onOpenTrackInfo: (Long) -> Unit,
 ) {
     val c = LocalContext.current.container
@@ -145,7 +143,8 @@ fun NowPlayingScreen(
                 .pointerInput(albumKey) {
                     detectVerticalDragGestures(
                         onDragEnd = {
-                            if (drag.value > threshold) onSwipeDown(albumKey, albumTitle)
+                            // 下へのスワイプ：左上の下矢印と同じく、前の画面に戻る
+                            if (drag.value > threshold) onBack()
                             else scope.launch { drag.animateTo(0f) }
                         },
                         onDragCancel = { scope.launch { drag.animateTo(0f) } },
