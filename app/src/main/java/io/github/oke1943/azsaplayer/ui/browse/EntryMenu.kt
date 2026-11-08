@@ -17,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,7 +51,9 @@ fun EntryMenu(
 ) {
     val context = LocalContext.current
     val c = context.container
-    val scope = rememberCoroutineScope()
+    // メニューやダイアログは操作の直後に閉じる。画面のスコープだと閉じた時点で書き込みが取り消されるので、
+    // アプリ全体のスコープ（メインスレッド）で最後まで実行する
+    val scope = remember { c.persistScope() }
     val ids: List<Long> = when (entry) {
         is GroupEntry -> entry.tracks.filter { it.e.playable }.sortedWith(
             compareBy({ it.album.titleSort ?: it.album.title }, { it.e.discNo ?: 1 }, { it.e.trackNo ?: Int.MAX_VALUE }),
@@ -140,7 +141,9 @@ private fun toast(context: android.content.Context, text: String) =
 fun AddToPlaylistDialog(ids: List<Long>, onDone: () -> Unit) {
     val context = LocalContext.current
     val c = context.container
-    val scope = rememberCoroutineScope()
+    // メニューやダイアログは操作の直後に閉じる。画面のスコープだと閉じた時点で書き込みが取り消されるので、
+    // アプリ全体のスコープ（メインスレッド）で最後まで実行する
+    val scope = remember { c.persistScope() }
     // 追加先は保存してあるプレイリストだけ（「よく聞く音楽」は自動）
     val playlists by c.playlists.userPlaylists.collectAsStateWithLifecycle(initialValue = emptyList<PlaylistInfo>())
     var newName by remember { mutableStateOf(false) }

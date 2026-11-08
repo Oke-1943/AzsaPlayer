@@ -25,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,7 +115,6 @@ private fun Info(label: String, value: String) {
 @Composable
 fun PlaylistEditScreen(playlistId: Long, join: String, onBack: () -> Unit) {
     val c = LocalContext.current.container
-    val scope = rememberCoroutineScope()
     val snapshot by c.library.snapshot.collectAsStateWithLifecycle()
     var rows by remember { mutableStateOf<List<Pair<String, Long>>?>(null) }
     var dirty by remember { mutableStateOf(false) }
@@ -132,7 +130,8 @@ fun PlaylistEditScreen(playlistId: Long, join: String, onBack: () -> Unit) {
 
     fun save() {
         val ids = rows?.map { it.second } ?: return
-        scope.launch { c.playlists.setTracks(playlistId, ids) }
+        // 保存の直後に画面を閉じるので、アプリ全体のスコープで書き込む
+        c.persistScope().launch { c.playlists.setTracks(playlistId, ids) }
         dirty = false
     }
 

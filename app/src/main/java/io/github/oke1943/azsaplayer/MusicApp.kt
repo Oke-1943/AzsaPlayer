@@ -23,6 +23,12 @@ class AppContainer(context: Context) {
     }
     val artwork = ArtworkLoader(context)
     val player = PlayerConnection(context, scope)
+
+    /**
+     * 画面を閉じても取り消されない書き込み用のスコープ（メインスレッド。トーストも出せる）。
+     * プレイリストへの追加のように、操作の直後に画面やダイアログが閉じる処理で使う。
+     */
+    fun persistScope(): CoroutineScope = CoroutineScope(scope.coroutineContext + Dispatchers.Main)
 }
 
 class MusicApp : Application() {
