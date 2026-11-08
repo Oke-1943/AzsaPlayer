@@ -140,7 +140,11 @@ private fun AppNavHost(settings: AppSettings) {
         startDestination = Routes.HOME,
         enterTransition = { slideInHorizontally(tween(NAV_MS, easing = DECELERATE)) { it / 6 } + fadeIn(tween(NAV_MS - 60, delayMillis = 40)) },
         exitTransition = { slideOutHorizontally(tween(NAV_MS, easing = DECELERATE)) { -it / 12 } + fadeOut(tween(NAV_MS / 2)) },
-        popEnterTransition = { slideInHorizontally(tween(NAV_MS, easing = DECELERATE)) { -it / 12 } + fadeIn(tween(NAV_MS - 60, delayMillis = 40)) },
+        popEnterTransition = {
+            // 再生画面を閉じたときは、下の画面をその場でふわっと出す（横に動かさない）
+            if (initialState.destination.route == Routes.NOW_PLAYING) fadeIn(tween(NAV_MS))
+            else slideInHorizontally(tween(NAV_MS, easing = DECELERATE)) { -it / 12 } + fadeIn(tween(NAV_MS - 60, delayMillis = 40))
+        },
         popExitTransition = { slideOutHorizontally(tween(NAV_MS, easing = DECELERATE)) { it / 6 } + fadeOut(tween(NAV_MS / 2)) },
     ) {
         composable(Routes.HOME) {
@@ -197,7 +201,7 @@ private fun AppNavHost(settings: AppSettings) {
             Routes.NOW_PLAYING,
             // 再生画面は下からせり上がり、閉じると下へ
             enterTransition = { slideInVertically(tween(NAV_MS, easing = DECELERATE)) { it / 5 } + fadeIn(tween(NAV_MS - 60)) },
-            popExitTransition = { slideOutVertically(tween(NAV_MS, easing = DECELERATE)) { it / 5 } + fadeOut(tween(NAV_MS / 2)) },
+            popExitTransition = { slideOutVertically(tween(NAV_MS, easing = DECELERATE)) { it / 5 } + fadeOut(tween(NAV_MS)) },
         ) {
             NowPlayingScreen(
                 settings.display.nowPlaying,

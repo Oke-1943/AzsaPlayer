@@ -1,10 +1,10 @@
 package io.github.oke1943.azsaplayer.ui.player
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -49,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -93,8 +92,12 @@ fun NowPlayingScreen(
     val item = state.current
     val track = item?.mediaId?.toLongOrNull()?.let { snapshot.tracksById[it] }
     val scope = rememberCoroutineScope()
-    val drag = remember { Animatable(0f) }
-    val threshold = with(LocalDensity.current) { 120.dp.toPx() }
+    // 下へのスワイプで閉じる：指に合わせて動かし、離したら滑らかに下へ抜けるか元に戻る
+    var dragY by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    var pageHeight by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    var leaving by remember { mutableStateOf(false) }
+    val threshold = with(LocalDensity.current) { 64.dp.toPx() }
+    val flick = with(LocalDensity.current) { 500.dp.toPx() } // 素早く払ったときは短くても閉じる（px/秒）
     var menu by remember { mutableStateOf(false) }
 
     if (menu && track != null && item != null) {
@@ -136,23 +139,36 @@ fun NowPlayingScreen(
             Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .onSizeChanged { pageHeight = it.height.toFloat().coerceAtLeast(1f) }
                 .graphicsLayer {
-                    translationY = drag.value
-                    alpha = 1f - (drag.value / (threshold * 3)).coerceIn(0f, 0.5f)
+                    translationY = dragY
+                    alpha = 1f - (dragY / pageHeight * 1.5f).coerceIn(0f, 1f)
                 }
-                .pointerInput(albumKey) {
-                    detectVerticalDragGestures(
-                        onDragEnd = {
-                            // 下へのスワイプ：左上の下矢印と同じく、前の画面に戻る
-                            if (drag.value > threshold) onBack()
-                            else scope.launch { drag.animateTo(0f) }
-                        },
-                        onDragCancel = { scope.launch { drag.animateTo(0f) } },
-                    ) { change, dy ->
-                        change.consume()
-                        scope.launch { drag.snapTo((drag.value + dy).coerceAtLeast(0f)) }
-                    }
-                }
+                .draggable(
+                    state = androidx.compose.foundation.gestures.rememberDraggableState { dy -> if (!leaving) dragY = (dragY + dy).coerceAtLeast(0f) },
+                    orientation = androidx.compose.foundation.gestures.Orientation.Vertical,
+                    onDragStopped = { velocity ->
+                        // アニメーションは画面のスコープで動かす（ジェスチャーの終了で止められないように）
+                        if (leaving) return@draggable
+                        if (dragY > threshold || velocity > flick) {
+                            // 下へのスワイプ：左上の下矢印と同じく、前の画面に戻る。画面はそのまま下へ抜ける
+                            leaving = true
+                            scope.launch {
+                                androidx.compose.animation.core.animate(
+                                    dragY, pageHeight,
+                                    animationSpec = androidx.compose.animation.core.tween(250, easing = androidx.compose.animation.core.LinearOutSlowInEasing),
+                                ) { v, _ -> dragY = v }
+                            }
+                            onBack()
+                        } else {
+                            scope.launch {
+                                androidx.compose.animation.core.animate(dragY, 0f, velocity,
+                                    androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow),
+                                ) { v, _ -> dragY = v }
+                            }
+                        }
+                    },
+                )
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
